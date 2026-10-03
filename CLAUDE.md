@@ -1,0 +1,34 @@
+# gbti_admin
+
+디스코드 봇이 수집한 서버 멤버 활동(음성 채널, 온라인 상태, 게임, 메시지 수)을 보여주는 어드민 대시보드.
+
+## 구조 (npm workspaces, TypeScript)
+
+- `packages/db` — Drizzle 스키마(`src/schema.ts`), 마이그레이션(`migrations/`), 집계 쿼리(`src/queries.ts`). 봇과 웹이 함께 쓴다.
+- `apps/web` — Next.js 16 대시보드. `DATA_SOURCE=mock`(기본)이면 `src/lib/repository/mock.ts`의 시드 고정 목데이터, `db`면 PostgreSQL.
+- `apps/bot` — (예정) discord.js 봇. `packages/db` 스키마에 구간 데이터를 기록한다.
+
+## 데이터 규칙
+
+- 모든 활동은 `[started_at, ended_at)` 구간으로 저장, `ended_at` null = 진행 중. 유저당 열린 음성/온라인 구간은 1개(부분 유니크 인덱스).
+- "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
+- 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
+- 메시지는 `message_counts_daily`에 메시지가 올라온 채널 ID 그대로(스레드면 스레드 ID) 개수만 저장. 채널 이름/종류/상위 채널은 `channels` 테이블(봇이 upsert). 화면에선 스레드를 상위 채널 아래로 묶는다(`lib/messageChannels.ts`).
+- 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
+- 일 단위 집계는 Asia/Seoul 자정 기준.
+- 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.
+- raw `sql` 파라미터에 `Date`를 그대로 넘기지 말 것(postgres.js가 직렬화 못 함) → `iso()` 사용. 타임스탬프는 epoch ms로 받아 `new Date()`로 변환.
+
+## 명령
+
+- `npm run dev` — 대시보드 (apps/web). 포트 지정은 `cd apps/web && npx next dev --port 3100`
+- `npm run typecheck`
+- `npm run db:generate` — 스키마 변경 후 마이그레이션 생성 / `npm run db:migrate` — 적용 (앱 시작 시 자동 실행하지 않는다)
+
+## 디자인 규칙
+
+- UI/페이지/컴포넌트를 새로 만들거나 리디자인할 때는 반드시 `.claude/skills/dark-editorial-design` 스킬을 먼저 로드하고 그 토큰·타이포·컴포넌트 패턴을 따른다.
+- 원본 레퍼런스 구현: `C:\Users\admin\gbti_manual\index.html`
+- 어드민처럼 데이터 밀도가 높은 화면은 스킬의 톤(컬러 토큰, 폰트, 옅은 보더, 절제된 모션)은 유지하되, 좁은 680px 단일 컬럼·마퀴·스크롤 리빌 같은 랜딩용 장치는 화면 성격에 맞게 조정한다. (현재 컨테이너 1180px)
+- **숫자는 배민 주아체(Google Fonts `Jua`, `--font-num`)** 로 표시한다. KPI 값, 그래프 축/툴팁, 표 숫자 칸, 순위 등. Syne은 숫자 폭이 들쑥날쑥해서 숫자에 쓰지 않는다. Jua는 400 단일 굵기.
+- **PC 레이아웃은 고정**, 모바일은 `@media (max-width: 640px)` 안에서만 따로 잡는다. 모바일에선 고정 폭(표 min-width 등)을 풀고 카드형으로 바꿔도 된다 (예: 멤버 표 → 카드 목록, 일별 그래프 → 막대 최소 8px 가로 스크롤).

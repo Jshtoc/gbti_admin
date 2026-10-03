@@ -1,0 +1,102 @@
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kind {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.threads {
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
+
+.summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent2);
+  padding: 2px 0;
+  width: fit-content;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.2s;
+}
+
+.threads[open] > .summary::before {
+  transform: rotate(90deg);
+}
+
+.direct {
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.threadList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0 4px;
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.threadRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.threadName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.threadCount {
+  flex-shrink: 0;
+  font-family: var(--font-num);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.threadTrack {
+  display: block;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--grid);
+  overflow: hidden;
+}
+
+.threadFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent2);
+  opacity: 0.6;
+}

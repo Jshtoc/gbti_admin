@@ -1,0 +1,242 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--muted);
+  font-family: var(--font-num);
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.3s,
+    color 0.3s;
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  border-color: var(--border-hover);
+  color: var(--fg);
+}
+
+.trigger[data-custom] {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.trigger[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 320px;
+  padding: 18px;
+  background: var(--bg2);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.month {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nav {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.nav:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--bg3);
+}
+
+.nav:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+}
+
+.weekday {
+  padding-bottom: 6px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.weekday[data-sunday] {
+  color: var(--accent2);
+}
+
+.day {
+  position: relative;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-num);
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+/* 선택된 칸(시작/끝/범위)은 hover로 덮지 않는다 */
+.day:hover:not(:disabled):not([data-start]):not([data-end]):not([data-in-range]) {
+  background: var(--bg3);
+}
+
+.day:disabled {
+  color: var(--faint);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.day[data-today]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent2);
+}
+
+.day[data-in-range] {
+  background: rgba(255, 61, 0, 0.14);
+  border-radius: 0;
+}
+
+.day[data-start],
+.day[data-end] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.day[data-start]:not([data-end]) {
+  border-radius: 10px 0 0 10px;
+}
+
+.day[data-end]:not([data-start]) {
+  border-radius: 0 10px 10px 0;
+}
+
+.day[data-start]::after,
+.day[data-end]::after {
+  background: #fff;
+}
+
+.footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.summary[data-error] {
+  color: var(--accent2);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel,
+.apply {
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+}
+
+.cancel:hover {
+  color: var(--fg);
+}
+
+.apply {
+  border: 1px solid var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.apply:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .root {
+    width: 100%;
+  }
+
+  .trigger {
+    width: 100%;
+    height: 44px;
+    justify-content: center;
+  }
+
+  .popover {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+
+  .day {
+    height: 42px;
+  }
+}

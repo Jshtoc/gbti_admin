@@ -8,7 +8,7 @@ import { LoginForm } from './LoginForm';
 import styles from './login.module.css';
 
 export const metadata: Metadata = {
-  title: '로그인 · GBTI Admin',
+  title: '로그인 · GBTI 멤버활동 관리',
 };
 
 interface LoginPageProps {

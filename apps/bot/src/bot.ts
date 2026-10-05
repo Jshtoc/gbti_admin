@@ -124,6 +124,10 @@ export function createBot(tracker: Tracker) {
     ],
   });
   const queue = createSerialQueue();
+  /** 종료가 시작되면 새 DB 작업을 받지 않는다 (종료 처리로 닫은 뒤에 새 구간이 열리지 않게) */
+  let stopping = false;
+  const enqueue = (label: string, task: () => Promise<void>) =>
+    stopping ? Promise.resolve() : queue.enqueue(label, task);
   /**
    * 멤버별 마지막으로 기록한 상태·게임. 디스코드는 게임 상세 문구만 바뀌어도 상태 변경 이벤트를 자주 보내므로,
    * 기록할 내용이 실제로 바뀐 경우에만 DB에 쓴다 (봇 서버와 DB가 멀어도 큐가 밀리지 않게).
@@ -139,7 +143,7 @@ export function createBot(tracker: Tracker) {
     if (!channel) return;
     const occupants = roomOccupants(channel);
     const name = channel.name;
-    void queue.enqueue(`room ${name}`, () => tracker.refreshRoom(channel.id, name, occupants, at));
+    void enqueue(`room ${name}`, () => tracker.refreshRoom(channel.id, name, occupants, at));
   };
 
   const recover = async (reason: string) => {
@@ -148,7 +152,7 @@ export function createBot(tracker: Tracker) {
     const at = new Date();
     lastPresence.clear();
     for (const p of snapshot.presences) lastPresence.set(p.userId, { status: p.status, gamesKey: gamesKeyOf(p.games) });
-    await queue.enqueue(`recover (${reason})`, () => tracker.recover(snapshot, at));
+    await enqueue(`recover (${reason})`, () => tracker.recover(snapshot, at));
     console.log(
       `[bot] ${reason}: ${guild.name} · 멤버 ${snapshot.members.length} · 음성 ${snapshot.voice.length} · 사용 중인 방 ${snapshot.rooms.length}`,
     );
@@ -173,7 +177,7 @@ export function createBot(tracker: Tracker) {
             .map((m) => m.id)
         : [];
       // 온라인/음성 중인 멤버의 마지막 접속은 여기서 1분마다 한꺼번에 갱신한다
-      void queue.enqueue('heartbeat', async () => {
+      void enqueue('heartbeat', async () => {
         await tracker.heartbeat(at);
         await tracker.touchLastSeen(active, at);
       });
@@ -191,20 +195,20 @@ export function createBot(tracker: Tracker) {
   client.on(Events.GuildMemberAdd, (member) => {
     if (!isOurGuild(member.guild.id)) return;
     const info = toMemberInfo(member);
-    void queue.enqueue('member add', () => tracker.upsertMembers([info], new Date()));
+    void enqueue('member add', () => tracker.upsertMembers([info], new Date()));
   });
 
   client.on(Events.GuildMemberUpdate, (_old, member) => {
     if (!isOurGuild(member.guild.id)) return;
     const info = toMemberInfo(member);
-    void queue.enqueue('member update', () => tracker.upsertMembers([info], new Date()));
+    void enqueue('member update', () => tracker.upsertMembers([info], new Date()));
   });
 
   client.on(Events.GuildMemberRemove, (member: GuildMember | PartialGuildMember) => {
     if (!isOurGuild(member.guild.id)) return;
     const at = new Date();
     lastPresence.delete(member.id);
-    void queue.enqueue('member remove', () => tracker.markMemberLeft(member.id, at));
+    void enqueue('member remove', () => tracker.markMemberLeft(member.id, at));
   });
 
   // ─── 음성 ───
@@ -217,11 +221,11 @@ export function createBot(tracker: Tracker) {
 
     if (joined) {
       const name = joined.name;
-      void queue.enqueue('voice join', () => tracker.openVoice(userId, joined.id, name, at));
+      void enqueue('voice join', () => tracker.openVoice(userId, joined.id, name, at));
     } else {
-      void queue.enqueue('voice leave', () => tracker.closeVoice(userId, at));
+      void enqueue('voice leave', () => tracker.closeVoice(userId, at));
     }
-    void queue.enqueue('last seen', () => tracker.touchLastSeen([userId], at));
+    void enqueue('last seen', () => tracker.touchLastSeen([userId], at));
     refreshRoom(oldState.channel, at);
     refreshRoom(joined, at);
   });
@@ -240,7 +244,7 @@ export function createBot(tracker: Tracker) {
     lastPresence.set(userId, { status, gamesKey });
 
     const at = new Date();
-    void queue.enqueue('presence', async () => {
+    void enqueue('presence', async () => {
       if (prev?.status !== status) await tracker.setPresence(userId, status, at);
       if (prev?.gamesKey !== gamesKey) await tracker.setActivities(userId, games, at);
       // 오프라인이 된 순간이 마지막 접속 (온라인 중에는 하트비트가 갱신)
@@ -254,7 +258,7 @@ export function createBot(tracker: Tracker) {
   const upsertChannel = (channel: Channel, label: string) => {
     const info = toChannelInfo(channel);
     if (!info) return;
-    void queue.enqueue(label, () => tracker.upsertChannels([info], new Date()));
+    void enqueue(label, () => tracker.upsertChannels([info], new Date()));
   };
 
   client.on(Events.ChannelCreate, (channel) => {
@@ -280,6 +284,7 @@ export function createBot(tracker: Tracker) {
 
   /** 정상 종료: 열린 구간을 지금 시각으로 닫고 연결을 끊는다 */
   async function stop() {
+    stopping = true;
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     const at = new Date();
     await queue.enqueue('shutdown', () => tracker.shutdown(at));

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type { MemberActivity } from '@gbti/db';
 
-export const MEMBER_SORT_KEYS = ['voice', 'online', 'messages', 'lastSeen'] as const;
+export const MEMBER_SORT_KEYS = ['voice', 'online', 'lastSeen'] as const;
 export type MemberSortKey = (typeof MEMBER_SORT_KEYS)[number];
 
 const sortSchema = z.enum(MEMBER_SORT_KEYS).catch('voice');
@@ -18,7 +18,6 @@ export function sortMembers(members: MemberActivity[], key: MemberSortKey): Memb
   const value: Record<MemberSortKey, (m: MemberActivity) => number> = {
     voice: (m) => m.voiceSeconds,
     online: (m) => m.onlineSeconds,
-    messages: (m) => m.messageCount,
     lastSeen: lastSeenTime,
   };
   return [...members].sort((a, b) => value[key](b) - value[key](a));

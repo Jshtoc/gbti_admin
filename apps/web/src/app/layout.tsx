@@ -17,7 +17,7 @@ const notoKr = Noto_Sans_KR({
 });
 
 const SITE_TITLE = 'GBTI 멤버활동 관리';
-const SITE_DESCRIPTION = '디스코드 서버 멤버의 음성 채널 활동, 같이 플레이한 멤버, 채널별 메시지를 한눈에 보는 관리자 대시보드';
+const SITE_DESCRIPTION = '디스코드 서버 멤버의 음성 채널 활동, 같이 플레이한 멤버, 게임 기록을 한눈에 보는 관리자 대시보드';
 
 /**
  * 링크 미리보기(카카오톡 등)는 이미지 주소가 https:// 절대 경로여야 한다.

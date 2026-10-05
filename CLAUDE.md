@@ -1,12 +1,12 @@
 # gbti_admin
 
-디스코드 봇이 수집한 서버 멤버 활동(음성 채널, 온라인 상태, 게임, 메시지 수)을 보여주는 어드민 대시보드.
+디스코드 봇이 수집한 서버 멤버 활동(음성 채널, 온라인 상태, 게임)을 보여주는 어드민 대시보드.
 
 ## 구조 (npm workspaces, TypeScript)
 
 - `packages/db` — Drizzle 스키마(`src/schema.ts`), 마이그레이션(`migrations/`), 집계 쿼리(`src/queries.ts`). 봇과 웹이 함께 쓴다.
 - `apps/web` — Next.js 16 대시보드. `DATA_SOURCE=mock`(기본)이면 `src/lib/repository/mock.ts`의 시드 고정 목데이터, `db`면 PostgreSQL.
-- `apps/bot` — discord.js 봇. `src/tracker.ts`(디스코드와 무관한 기록 로직, DB에 구간 기록) ← `src/bot.ts`(디스코드 이벤트를 받아 그 순간의 상태를 값으로 넘김). DB 쓰기는 `queue.ts`로 직렬 실행. 봇 계정·봇 유저는 음성/상태/메시지 기록에서 제외.
+- `apps/bot` — discord.js 봇. `src/tracker.ts`(디스코드와 무관한 기록 로직, DB에 구간 기록) ← `src/bot.ts`(디스코드 이벤트를 받아 그 순간의 상태를 값으로 넘김). DB 쓰기는 `queue.ts`로 직렬 실행. 봇 계정·봇 유저는 기록에서 제외.
 - 봇은 1분마다 `bot_status.last_heartbeat_at` 갱신. 재시작 시 열린 구간을 마지막 하트비트 시각에 닫고(꺼져 있던 시간은 집계 안 함) 현재 상태로 다시 연다. 정상 종료(SIGINT/SIGTERM)는 지금 시각으로 닫는다.
 
 ## 데이터 규칙
@@ -15,7 +15,8 @@
 - "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
 - 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할하·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
 - 게임 이름 별칭은 `roomCategory.ts`의 `GAME_ALIASES` (예: Modrinth → Minecraft). 봇이 기록할 때 적용하므로 별칭을 추가하면 기존 DB 기록(activity_sessions.activity_name, voice_room_states.category_label)도 UPDATE로 맞춰야 한다.
-- 메시지는 `message_counts_daily`에 메시지가 올라온 채널 ID 그대로(스레드면 스레드 ID) 개수만 저장. 채널 이름/종류/상위 채널은 `channels` 테이블(봇이 upsert). 화면에선 스레드를 상위 채널 아래로 묶는다(`lib/messageChannels.ts`).
+- **메시지는 수집·조회·표시하지 않는다**(사용자 요청, 2026-10-06). 봇에 GuildMessages 인텐트도 없다. `message_counts_daily`는 그 전에 쌓인 기록만 남은 테이블.
+- `channels` 테이블(봇이 upsert)은 채널 이름/종류. 음성 채널 이름이 바뀌면 방 종류를 다시 판정한다.
 - 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
 - 일 단위 집계는 Asia/Seoul 자정 기준.
 - 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.

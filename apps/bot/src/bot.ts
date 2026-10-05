@@ -73,7 +73,7 @@ function channelKind(channel: Channel): ChannelInfo['kind'] {
   }
 }
 
-/** 메시지를 셀 수 있는 채널(카테고리 제외)만 기록 */
+/** 채널 정보 (카테고리 제외). 음성 채널 이름 변경 시 방 종류 재판정에 쓴다 */
 function toChannelInfo(channel: Channel): ChannelInfo | null {
   if (channel.isDMBased() || channel.type === ChannelType.GuildCategory) return null;
   return {
@@ -121,11 +121,9 @@ export function createBot(tracker: Tracker) {
       GatewayIntentBits.GuildMembers, // 특권 인텐트: 멤버 목록
       GatewayIntentBits.GuildPresences, // 특권 인텐트: 온라인 상태 / 게임
       GatewayIntentBits.GuildVoiceStates,
-      GatewayIntentBits.GuildMessages, // 메시지 "개수"만 센다 (Message Content 인텐트 불필요)
     ],
   });
   const queue = createSerialQueue();
-  const knownChannels = new Set<string>();
   /**
    * 멤버별 마지막으로 기록한 상태·게임. 디스코드는 게임 상세 문구만 바뀌어도 상태 변경 이벤트를 자주 보내므로,
    * 기록할 내용이 실제로 바뀐 경우에만 DB에 쓴다 (봇 서버와 DB가 멀어도 큐가 밀리지 않게).
@@ -148,7 +146,6 @@ export function createBot(tracker: Tracker) {
     const guild = await client.guilds.fetch(tracker.guildId);
     const snapshot = await readSnapshot(guild);
     const at = new Date();
-    for (const c of snapshot.channels) knownChannels.add(c.channelId);
     lastPresence.clear();
     for (const p of snapshot.presences) lastPresence.set(p.userId, { status: p.status, gamesKey: gamesKeyOf(p.games) });
     await queue.enqueue(`recover (${reason})`, () => tracker.recover(snapshot, at));
@@ -257,7 +254,6 @@ export function createBot(tracker: Tracker) {
   const upsertChannel = (channel: Channel, label: string) => {
     const info = toChannelInfo(channel);
     if (!info) return;
-    knownChannels.add(info.channelId);
     void queue.enqueue(label, () => tracker.upsertChannels([info], new Date()));
   };
 
@@ -278,24 +274,6 @@ export function createBot(tracker: Tracker) {
 
   client.on(Events.ThreadUpdate, (_old, thread) => {
     if (isOurGuild(thread.guild.id)) upsertChannel(thread, 'thread update');
-  });
-
-  // ─── 메시지 (개수만) ───
-  client.on(Events.MessageCreate, (message) => {
-    if (!message.inGuild() || !isOurGuild(message.guildId) || message.author.bot) return;
-    const at = new Date();
-    const channel = message.channel;
-
-    // 처음 보는 채널(새 스레드 등)은 이름/상위 채널을 먼저 기록
-    if (!knownChannels.has(channel.id)) {
-      if (channel.isThread() && channel.parent && !knownChannels.has(channel.parent.id)) {
-        upsertChannel(channel.parent, 'channel (parent)');
-      }
-      upsertChannel(channel, 'channel (message)');
-    }
-    const userId = message.author.id;
-    // 메시지를 보내는 멤버는 온라인이라 마지막 접속은 하트비트가 갱신한다
-    void queue.enqueue('message', () => tracker.countMessage(userId, channel.id, at));
   });
 
   client.on(Events.Error, (error) => console.error('[bot] discord 오류:', error));

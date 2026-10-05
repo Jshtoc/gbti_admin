@@ -6,6 +6,7 @@ import type { DashboardRepository } from './types';
 
 export function createDbRepository(guildId: string): DashboardRepository {
   return {
+    getMembers: () => queries.getMembers(guildId),
     getMemberActivity: (range) => queries.getMemberActivity(guildId, range),
     getCoPlayPairs: (range, limit) => queries.getCoPlayPairs(guildId, range, limit),
     getPartners: (userId, range, limit) => queries.getPartners(guildId, userId, range, limit),
@@ -14,6 +15,5 @@ export function createDbRepository(guildId: string): DashboardRepository {
     getRecentVoiceSessions: (userId, limit) =>
       queries.getRecentVoiceSessions(guildId, userId, limit),
     getRoomCategoryTimes: (range, userId) => queries.getRoomCategoryTimes(guildId, range, userId),
-    getMessageChannelCounts: (range, userId) => queries.getMessageChannelCounts(guildId, range, userId),
   };
 }

@@ -7,13 +7,10 @@ import {
   botStatus,
   channels,
   members,
-  messageCountsDaily,
   presenceSessions,
   voiceRoomStates,
   voiceSessions,
 } from '@gbti/db/schema';
-
-import { kstDayKey } from './time';
 
 // 디스코드와 무관한 기록 로직. 디스코드 이벤트 → 여기 메서드 호출 (bot.ts).
 // 모든 구간은 [started_at, ended_at), ended_at null = 진행 중.
@@ -54,7 +51,13 @@ export interface GuildSnapshot {
   rooms: { channelId: string; channelName: string; occupants: RoomOccupant[] }[];
 }
 
-type IntervalTable = typeof voiceSessions | typeof presenceSessions | typeof activitySessions | typeof voiceRoomStates;
+/** 방 종류 판정. 1인 1게임: 여러 게임을 동시에 켜둔 멤버는 첫 번째 게임만 센다 */
+function roomCategoryOf(channelName: string, occupants: RoomOccupant[], previousLabel?: string) {
+  const games = occupants.map((o) => o.games[0]).filter((g): g is string => Boolean(g));
+  return classifyRoom(channelName, games, previousLabel);
+}
+
+type IntervalTable =typeof voiceSessions | typeof presenceSessions | typeof activitySessions | typeof voiceRoomStates;
 
 export class Tracker {
   constructor(
@@ -208,9 +211,7 @@ export class Tracker {
       return;
     }
 
-    // 1인 1게임: 여러 게임을 동시에 켜둔 멤버는 첫 번째 게임만 센다
-    const games = occupants.map((o) => o.games[0]).filter((g): g is string => Boolean(g));
-    const category = classifyRoom(channelName, games, open?.label);
+    const category = roomCategoryOf(channelName, occupants, open?.label);
 
     if (open && open.kind === category.kind && open.label === category.label) {
       if (open.name !== channelName) {
@@ -230,7 +231,7 @@ export class Tracker {
     });
   }
 
-  // ─── 채널 / 메시지 ──────────────────────────────────────
+  // ─── 채널 ───────────────────────────────────────────────
 
   async upsertChannels(list: ChannelInfo[], at: Date) {
     for (let i = 0; i < list.length; i += 500) {
@@ -249,17 +250,6 @@ export class Tracker {
           },
         });
     }
-  }
-
-  /** 메시지 1개 (내용은 저장하지 않음). KST 날짜별로 누적 */
-  async countMessage(userId: string, channelId: string, at: Date) {
-    await this.db
-      .insert(messageCountsDaily)
-      .values({ guildId: this.guildId, userId, channelId, day: kstDayKey(at), count: 1 })
-      .onConflictDoUpdate({
-        target: [messageCountsDaily.guildId, messageCountsDaily.userId, messageCountsDaily.channelId, messageCountsDaily.day],
-        set: { count: sql`${messageCountsDaily.count} + 1` },
-      });
   }
 
   // ─── 봇 생명주기 ────────────────────────────────────────
@@ -288,22 +278,54 @@ export class Tracker {
       .where(eq(botStatus.guildId, this.guildId));
     const closeAt = status && status.lastHeartbeatAt < at ? status.lastHeartbeatAt : at;
 
+    // 열린 구간을 먼저 모두 닫으므로, 새 구간은 멤버별로 확인할 필요 없이 테이블마다 한 번에 넣는다.
+    // (봇 서버와 DB가 멀면 요청 하나하나가 느려서, 수백 번 왕복하면 시작이 몇 분씩 걸린다)
+    const guildId = this.guildId;
+    const online = snapshot.presences.filter((p) => p.status !== 'offline');
+
     await this.db.transaction(async (tx) => {
-      const scoped = new Tracker(tx as unknown as Database, this.guildId);
+      const scoped = new Tracker(tx as unknown as Database, guildId);
       await scoped.closeAllOpen(closeAt);
       await scoped.upsertMembers(snapshot.members, at);
       await scoped.upsertChannels(snapshot.channels, at);
-      for (const v of snapshot.voice) await scoped.openVoice(v.userId, v.channelId, v.channelName, at);
-      for (const p of snapshot.presences) {
-        await scoped.setPresence(p.userId, p.status, at);
-        await scoped.setActivities(p.userId, p.status === 'offline' ? [] : p.games, at);
+
+      if (snapshot.voice.length > 0) {
+        await tx.insert(voiceSessions).values(snapshot.voice.map((v) => ({ guildId, ...v, startedAt: at })));
       }
-      for (const r of snapshot.rooms) await scoped.refreshRoom(r.channelId, r.channelName, r.occupants, at);
-      const online = snapshot.presences.filter((p) => p.status !== 'offline').map((p) => p.userId);
-      await scoped.touchLastSeen([...new Set([...online, ...snapshot.voice.map((v) => v.userId)])], at);
+      if (online.length > 0) {
+        await tx
+          .insert(presenceSessions)
+          .values(online.map((p) => ({ guildId, userId: p.userId, status: p.status as 'online' | 'idle' | 'dnd', startedAt: at })));
+      }
+      const activities = online.flatMap((p) =>
+        [...new Set(p.games.map((g) => g.trim()).filter(Boolean))].map((activityName) => ({
+          guildId,
+          userId: p.userId,
+          activityName,
+          startedAt: at,
+        })),
+      );
+      if (activities.length > 0) await tx.insert(activitySessions).values(activities);
+
+      const rooms = snapshot.rooms
+        .filter((r) => r.occupants.length > 0)
+        .map((r) => {
+          const category = roomCategoryOf(r.channelName, r.occupants);
+          return {
+            guildId,
+            channelId: r.channelId,
+            channelName: r.channelName,
+            categoryKind: category.kind,
+            categoryLabel: category.label,
+            startedAt: at,
+          };
+        });
+      if (rooms.length > 0) await tx.insert(voiceRoomStates).values(rooms);
+
+      await scoped.touchLastSeen([...new Set([...online.map((p) => p.userId), ...snapshot.voice.map((v) => v.userId)])], at);
       await tx
         .insert(botStatus)
-        .values({ guildId: this.guildId, startedAt: at, lastHeartbeatAt: at })
+        .values({ guildId, startedAt: at, lastHeartbeatAt: at })
         .onConflictDoUpdate({ target: botStatus.guildId, set: { startedAt: at, lastHeartbeatAt: at } });
     });
   }

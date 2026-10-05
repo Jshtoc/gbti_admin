@@ -3,7 +3,8 @@ import Link from 'next/link';
 import type { MemberActivity } from '@gbti/db';
 
 import { Avatar } from '@/components/ui/Avatar';
-import { formatCount, formatDuration, formatLastSeen } from '@/lib/format';
+import { LinkPending } from '@/components/ui/LinkPending';
+import { formatDuration, formatLastSeen } from '@/lib/format';
 import type { MemberSortKey } from '@/lib/memberSort';
 import { overviewHref, periodHref, type OverviewQuery } from '@/lib/overviewQuery';
 
@@ -17,7 +18,6 @@ interface MemberTableProps {
 const COLUMNS: { key: MemberSortKey; label: string }[] = [
   { key: 'voice', label: '음성' },
   { key: 'online', label: '온라인' },
-  { key: 'messages', label: '메시지' },
   { key: 'lastSeen', label: '마지막 접속' },
 ];
 
@@ -52,6 +52,7 @@ export function MemberTable({ members, query }: MemberTableProps) {
                   >
                     {col.label}
                     <span aria-hidden="true">{col.key === sort ? ' ↓' : ''}</span>
+                    <LinkPending size={10} />
                   </Link>
                 </th>
               ))}
@@ -69,11 +70,11 @@ export function MemberTable({ members, query }: MemberTableProps) {
                       <span className={styles.displayName}>{m.displayName}</span>
                       <span className={styles.username}>@{m.username}</span>
                     </span>
+                    <LinkPending size={12} />
                   </Link>
                 </td>
                 <td className={styles.num}>{formatDuration(m.voiceSeconds)}</td>
                 <td className={styles.num}>{formatDuration(m.onlineSeconds)}</td>
-                <td className={styles.num}>{formatCount(m.messageCount)}</td>
                 <td className={styles.num}>{formatLastSeen(m.lastSeenAt)}</td>
                 <td className={styles.game}>{m.topGame ?? '—'}</td>
               </tr>
@@ -93,6 +94,7 @@ export function MemberTable({ members, query }: MemberTableProps) {
               scroll={false}
             >
               {col.label}
+              <LinkPending size={10} />
             </Link>
           ))}
         </nav>
@@ -112,6 +114,9 @@ export function MemberTable({ members, query }: MemberTableProps) {
                     <span className={styles.displayName}>{m.displayName}</span>
                     <span className={styles.username}>{m.topGame ?? '게임 기록 없음'}</span>
                   </span>
+                  <span className={styles.cardPending}>
+                    <LinkPending size={12} />
+                  </span>
                 </span>
                 <dl className={styles.cardStats}>
                   <div data-active={sort === 'voice' || undefined}>
@@ -121,10 +126,6 @@ export function MemberTable({ members, query }: MemberTableProps) {
                   <div data-active={sort === 'online' || undefined}>
                     <dt>온라인</dt>
                     <dd>{formatDuration(m.onlineSeconds)}</dd>
-                  </div>
-                  <div data-active={sort === 'messages' || undefined}>
-                    <dt>메시지</dt>
-                    <dd>{formatCount(m.messageCount)}</dd>
                   </div>
                   <div data-active={sort === 'lastSeen' || undefined}>
                     <dt>마지막 접속</dt>

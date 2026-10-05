@@ -2,13 +2,12 @@ import { sql, type SQL } from 'drizzle-orm';
 
 import { getDb } from './client';
 import type {
-  ChannelKind,
   CoPlayPair,
   DailyVoice,
   DateRange,
   GameTime,
   MemberActivity,
-  MessageChannelCount,
+  MemberListItem,
   PartnerTime,
   RoomCategoryTime,
   VoiceSessionRow,
@@ -35,7 +34,7 @@ function overlapsRange(alias: string, range: DateRange): SQL {
     and ${endOf(alias)} > ${iso(range.from)}::timestamptz`;
 }
 
-/** 멤버별 활동 요약 (음성/온라인 시간, 메시지 수, 가장 많이 한 게임) */
+/** 멤버별 활동 요약 (음성/온라인 시간, 가장 많이 한 게임) */
 export async function getMemberActivity(
   guildId: string,
   range: DateRange,
@@ -48,7 +47,6 @@ export async function getMemberActivity(
     last_seen_ms: number | null;
     voice_seconds: number;
     online_seconds: number;
-    message_count: number;
     top_game: string | null;
   }>(sql`
     with voice as (
@@ -62,14 +60,6 @@ export async function getMemberActivity(
       from presence_sessions p
       where p.guild_id = ${guildId} and ${overlapsRange('p', range)}
       group by p.user_id
-    ),
-    msgs as (
-      select c.user_id, sum(c.count) as n
-      from message_counts_daily c
-      where c.guild_id = ${guildId}
-        and c.day >= (${iso(range.from)}::timestamptz at time zone ${TZ})::date
-        and c.day <= ((${iso(range.to)}::timestamptz - interval '1 microsecond') at time zone ${TZ})::date
-      group by c.user_id
     ),
     game_totals as (
       select a.user_id, a.activity_name, sum(${clippedSeconds('a', range)}) as s
@@ -86,12 +76,10 @@ export async function getMemberActivity(
       (extract(epoch from m.last_seen_at) * 1000)::float8 as last_seen_ms,
       coalesce(voice.s, 0)::float8 as voice_seconds,
       coalesce(online.s, 0)::float8 as online_seconds,
-      coalesce(msgs.n, 0)::int as message_count,
       top_game.activity_name as top_game
     from members m
     left join voice on voice.user_id = m.user_id
     left join online on online.user_id = m.user_id
-    left join msgs on msgs.user_id = m.user_id
     left join top_game on top_game.user_id = m.user_id
     where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot
   `);
@@ -104,7 +92,6 @@ export async function getMemberActivity(
     lastSeenAt: r.last_seen_ms === null ? null : new Date(r.last_seen_ms),
     voiceSeconds: r.voice_seconds,
     onlineSeconds: r.online_seconds,
-    messageCount: r.message_count,
     topGame: r.top_game,
   }));
 }
@@ -324,50 +311,24 @@ export async function getRoomCategoryTimes(
   return rows.map((r) => ({ kind: r.kind, label: r.label, seconds: r.seconds }));
 }
 
-/**
- * 채널(스레드 포함)별 메시지 수. 채널 정보가 아직 없으면 이름 대신 ID를 쓴다.
- * userId를 주면 그 멤버만.
- */
-export async function getMessageChannelCounts(
-  guildId: string,
-  range: DateRange,
-  userId?: string,
-): Promise<MessageChannelCount[]> {
-  const userFilter = userId ? sql`and c.user_id = ${userId}` : sql``;
+/** 현재 서버에 있는 (봇 아닌) 멤버 목록. 멤버 검색/선택용 가벼운 조회 */
+export async function getMembers(guildId: string): Promise<MemberListItem[]> {
   const rows = await getDb().execute<{
-    channel_id: string;
-    name: string | null;
-    kind: ChannelKind | null;
-    parent_id: string | null;
-    parent_name: string | null;
-    parent_kind: ChannelKind | null;
-    count: number;
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
   }>(sql`
-    with counts as (
-      select c.channel_id, sum(c.count)::int as count
-      from message_counts_daily c
-      where c.guild_id = ${guildId}
-        and c.day >= (${iso(range.from)}::timestamptz at time zone ${TZ})::date
-        and c.day <= ((${iso(range.to)}::timestamptz - interval '1 microsecond') at time zone ${TZ})::date
-        ${userFilter}
-      group by c.channel_id
-    )
-    select counts.channel_id, ch.name, ch.kind, ch.parent_id,
-      p.name as parent_name, p.kind as parent_kind, counts.count
-    from counts
-    left join channels ch on ch.guild_id = ${guildId} and ch.channel_id = counts.channel_id
-    left join channels p on p.guild_id = ${guildId} and p.channel_id = ch.parent_id
-    where counts.count > 0
-    order by counts.count desc
+    select m.user_id, m.username, m.display_name, m.avatar_url
+    from members m
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot
+    order by m.display_name
   `);
 
   return rows.map((r) => ({
-    channelId: r.channel_id,
-    name: r.name ?? `#${r.channel_id}`,
-    kind: r.kind ?? 'other',
-    parentId: r.parent_id,
-    parentName: r.parent_name,
-    parentKind: r.parent_kind,
-    count: r.count,
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
   }));
 }

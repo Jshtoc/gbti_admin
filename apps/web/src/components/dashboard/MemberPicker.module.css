@@ -1,0 +1,163 @@
+.root {
+  position: relative;
+  width: 220px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  height: 46px;
+  padding: 0 40px 0 38px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.3s;
+}
+
+.input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* 멤버가 선택돼 있으면 placeholder(=선택된 이름)를 본문색으로 */
+.root[data-selected] .input:not(:focus)::placeholder {
+  color: var(--fg);
+}
+
+.root[data-selected] .input {
+  border-color: var(--accent);
+}
+
+.input:hover {
+  border-color: var(--border-hover);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent2);
+}
+
+.trailing {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.option[aria-selected='true'] {
+  background: var(--bg3);
+}
+
+.option[data-current] .name,
+.option[data-current] .all {
+  color: var(--accent2);
+}
+
+.names {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.username {
+  font-size: 11px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.check {
+  flex-shrink: 0;
+  color: var(--accent2);
+}
+
+.empty,
+.more {
+  padding: 14px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.more {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+@media (max-width: 640px) {
+  .root {
+    width: 100%;
+  }
+
+  /* iOS는 16px 미만 입력창에 포커스하면 화면을 확대한다 */
+  .input {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .searchIcon {
+    top: 15px;
+  }
+
+  .list {
+    width: 100%;
+    max-height: 50vh;
+  }
+}

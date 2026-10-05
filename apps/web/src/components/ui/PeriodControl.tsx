@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { LinkPending } from '@/components/ui/LinkPending';
 import { withParams } from '@/lib/overviewQuery';
 import { activePreset, MAX_PERIOD_DAYS, PERIOD_PRESETS, presetPeriod, type Period } from '@/lib/period';
 import { kstDayKey } from '@/lib/time';
@@ -33,6 +34,7 @@ export function PeriodControl({ period, basePath, params = {} }: PeriodControlPr
             scroll={false}
           >
             {preset.label}
+            <LinkPending size={10} />
           </Link>
         ))}
       </nav>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { LinkPending } from '@/components/ui/LinkPending';
 import { formatDuration } from '@/lib/format';
 
 import styles from './BarList.module.css';
@@ -23,7 +24,7 @@ interface BarListProps {
   ranked?: boolean;
 }
 
-/** 순위형 가로 막대 목록 (듀오 랭킹, 방 종류, 메시지 채널, 함께한 멤버, 게임별 시간) */
+/** 순위형 가로 막대 목록 (듀오 랭킹, 방 종류, 함께한 멤버, 게임별 시간) */
 export function BarList({ items, emptyText, ranked = false }: BarListProps) {
   if (items.length === 0) return <p className={styles.empty}>{emptyText}</p>;
 
@@ -52,6 +53,7 @@ export function BarList({ items, emptyText, ranked = false }: BarListProps) {
             {item.href ? (
               <Link href={item.href} className={`${styles.item} ${styles.link}`}>
                 {body}
+                <LinkPending size={12} />
               </Link>
             ) : (
               <div className={styles.item}>{body}</div>

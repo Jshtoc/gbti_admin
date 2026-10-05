@@ -12,11 +12,15 @@ export interface MemberRef {
   avatarUrl: string | null;
 }
 
+/** 멤버 검색/선택용 */
+export interface MemberListItem extends MemberRef {
+  username: string;
+}
+
 export interface MemberActivity extends MemberRef {
   username: string;
   voiceSeconds: number;
   onlineSeconds: number;
-  messageCount: number;
   topGame: string | null;
   lastSeenAt: Date | null;
 }
@@ -48,19 +52,6 @@ export interface RoomCategoryTime {
   kind: 'keyword' | 'game' | 'unknown';
   label: string;
   seconds: number;
-}
-
-export type ChannelKind = 'text' | 'forum' | 'thread' | 'voice' | 'other';
-
-/** 메시지가 올라온 채널별 개수. 스레드면 parent에 상위 채널 정보 */
-export interface MessageChannelCount {
-  channelId: string;
-  name: string;
-  kind: ChannelKind;
-  parentId: string | null;
-  parentName: string | null;
-  parentKind: ChannelKind | null;
-  count: number;
 }
 
 export interface VoiceSessionRow {

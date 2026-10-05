@@ -7,6 +7,7 @@ import { withParams } from '@/lib/overviewQuery';
 import { addDays, diffDays, periodLabel, type Period } from '@/lib/period';
 
 import styles from './DateRangePicker.module.css';
+import { Spinner } from './Spinner';
 
 interface DateRangePickerProps {
   period: Period;
@@ -137,10 +138,14 @@ export function DateRangePicker({ period, today, maxDays, basePath, params, isCu
         aria-busy={isPending}
         onClick={() => (open ? close() : openPicker())}
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <rect x="1.5" y="2.5" width="11" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M1.5 6H12.5M4.5 1V3.5M9.5 1V3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
+        {isPending ? (
+          <Spinner size={14} label="선택한 기간을 불러오는 중" />
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <rect x="1.5" y="2.5" width="11" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M1.5 6H12.5M4.5 1V3.5M9.5 1V3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        )}
         <span className={styles.triggerText}>{periodLabel(period)}</span>
       </button>
 

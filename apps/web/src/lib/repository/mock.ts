@@ -7,7 +7,6 @@ import type {
   GameTime,
   MemberActivity,
   MemberRef,
-  MessageChannelCount,
   PartnerTime,
   RoomCategoryTime,
   VoiceSessionRow,
@@ -74,20 +73,6 @@ const MEMBERS: MockMember[] = [
   { userId: 'u20', displayName: '신입생', username: 'freshman', level: 0.5, channels: ['c-talk', 'c-val', 'c-free'], soloGame: 'Overwatch 2', showsActivity: true, inactiveForDays: null },
 ];
 
-/** channels 테이블과 같은 구조 + 메시지가 올라올 비중. 스레드는 parentId로 상위 채널에 묶인다 */
-const TEXT_CHANNELS: (Omit<MessageChannelCount, 'count' | 'parentName' | 'parentKind'> & { weight: number })[] = [
-  { channelId: 't-chat', name: '잡담', kind: 'text', parentId: null, weight: 5 },
-  { channelId: 't-party', name: '파티모집', kind: 'text', parentId: null, weight: 2 },
-  { channelId: 'th-scrim', name: '오늘 저녁 내전 멤버', kind: 'thread', parentId: 't-party', weight: 1.4 },
-  { channelId: 'th-duo', name: '듀오 구해요', kind: 'thread', parentId: 't-party', weight: 0.6 },
-  { channelId: 't-clip', name: '클립-하이라이트', kind: 'text', parentId: null, weight: 1 },
-  { channelId: 'f-guide', name: '공략-게시판', kind: 'forum', parentId: null, weight: 0 },
-  { channelId: 'th-jgl', name: '롤 정글 동선 정리', kind: 'thread', parentId: 'f-guide', weight: 1.2 },
-  { channelId: 'th-aim', name: '배그 에임 연습법', kind: 'thread', parentId: 'f-guide', weight: 0.9 },
-  { channelId: 'th-val', name: '발로 요원 티어표', kind: 'thread', parentId: 'f-guide', weight: 0.5 },
-  { channelId: 'c-lol', name: '아브아', kind: 'voice', parentId: null, weight: 0.8 },
-];
-
 const GENERATED_DAYS = 90;
 
 // ─── 생성 ───────────────────────────────────────────────────────
@@ -118,20 +103,11 @@ interface RoomStateInterval {
   endedAt: Date | null;
 }
 
-interface MessageRow {
-  userId: string;
-  day: string;
-  channelId: string;
-  count: number;
-}
-
 interface MockDataset {
   voice: VoiceInterval[];
   rooms: RoomStateInterval[];
   presence: Interval[];
   activity: ActivityInterval[];
-  /** message_counts_daily 와 같은 구조 */
-  messages: MessageRow[];
   lastSeen: Map<string, Date | null>;
 }
 
@@ -157,17 +133,6 @@ function generate(now: Date): MockDataset {
   const rooms: RoomStateInterval[] = [];
   const presence: Interval[] = [];
   const activity: ActivityInterval[] = [];
-  const messages: MessageRow[] = [];
-  const totalWeight = TEXT_CHANNELS.reduce((sum, c) => sum + c.weight, 0);
-  /** 가중치에 따라 메시지가 올라갈 채널(스레드 포함)을 고른다 */
-  const pickChannel = () => {
-    let r = rand() * totalWeight;
-    for (const c of TEXT_CHANNELS) {
-      r -= c.weight;
-      if (r <= 0) return c.channelId;
-    }
-    return TEXT_CHANNELS[0]!.channelId;
-  };
   let voiceId = 1;
 
   const today = kstMidnight(now);
@@ -260,15 +225,6 @@ function generate(now: Date): MockDataset {
       const settled = settle(onlineStart, onlineEnd);
       if (settled) presence.push({ userId: member.userId, startedAt: settled[0], endedAt: settled[1] });
 
-      const count = Math.round(rand() * member.level * (isWeekend ? 45 : 25));
-      if (count > 0 && dayStart <= now.getTime()) {
-        const perChannel = new Map<string, number>();
-        for (let i = 0; i < count; i++) {
-          const channelId = pickChannel();
-          perChannel.set(channelId, (perChannel.get(channelId) ?? 0) + 1);
-        }
-        for (const [channelId, n] of perChannel) messages.push({ userId: member.userId, day: dayKey, channelId, count: n });
-      }
     }
   }
 
@@ -279,7 +235,7 @@ function generate(now: Date): MockDataset {
     if (!current || end > current) lastSeen.set(p.userId, end);
   }
 
-  return { voice, rooms, presence, activity, messages, lastSeen };
+  return { voice, rooms, presence, activity, lastSeen };
 }
 
 // ─── 집계 (packages/db/src/queries.ts 의 SQL과 같은 규칙) ─────────
@@ -322,6 +278,12 @@ export function createMockRepository(): DashboardRepository {
     data.voice.filter((v) => overlaps(v, range, now));
 
   return {
+    async getMembers() {
+      return MEMBERS.map((member) => ({ ...toRef(member), username: member.username })).sort((a, b) =>
+        a.displayName.localeCompare(b.displayName, 'ko'),
+      );
+    },
+
     async getMemberActivity(range) {
       const now = new Date();
       const voice = sumByUser(data.voice, range, now);
@@ -335,15 +297,7 @@ export function createMockRepository(): DashboardRepository {
         games.set(a.userId, perGame);
       }
 
-      // 메시지는 일 단위 집계라 from 날짜 ~ 구간 마지막 순간이 속한 날짜까지 포함
-      const fromKey = kstDayKey(range.from);
-      const lastKey = kstDayKey(new Date(range.to.getTime() - 1));
-
       return MEMBERS.map((m): MemberActivity => {
-        let messageCount = 0;
-        for (const row of data.messages) {
-          if (row.userId === m.userId && row.day >= fromKey && row.day <= lastKey) messageCount += row.count;
-        }
         const topGame = [...(games.get(m.userId) ?? [])].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
 
         return {
@@ -351,7 +305,6 @@ export function createMockRepository(): DashboardRepository {
           username: m.username,
           voiceSeconds: voice.get(m.userId) ?? 0,
           onlineSeconds: online.get(m.userId) ?? 0,
-          messageCount,
           topGame,
           lastSeenAt: data.lastSeen.get(m.userId) ?? null,
         };
@@ -440,32 +393,6 @@ export function createMockRepository(): DashboardRepository {
           startedAt: v.startedAt,
           endedAt: v.endedAt,
         }));
-    },
-
-    async getMessageChannelCounts(range, userId) {
-      const fromKey = kstDayKey(range.from);
-      const lastKey = kstDayKey(new Date(range.to.getTime() - 1));
-      const totals = new Map<string, number>();
-      for (const row of data.messages) {
-        if ((userId && row.userId !== userId) || row.day < fromKey || row.day > lastKey) continue;
-        totals.set(row.channelId, (totals.get(row.channelId) ?? 0) + row.count);
-      }
-      const byId = new Map(TEXT_CHANNELS.map((c) => [c.channelId, c]));
-      return [...totals]
-        .map(([channelId, count]): MessageChannelCount => {
-          const channel = byId.get(channelId)!;
-          const parent = channel.parentId ? byId.get(channel.parentId) : undefined;
-          return {
-            channelId,
-            name: channel.name,
-            kind: channel.kind,
-            parentId: channel.parentId,
-            parentName: parent?.name ?? null,
-            parentKind: parent?.kind ?? null,
-            count,
-          };
-        })
-        .sort((x, y) => y.count - x.count);
     },
 
     async getRoomCategoryTimes(range, userId) {

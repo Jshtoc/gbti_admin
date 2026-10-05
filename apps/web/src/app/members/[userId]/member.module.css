@@ -96,3 +96,15 @@
     row-gap: 6px;
   }
 }
+
+.summary {
+  margin: -12px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

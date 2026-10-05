@@ -3,8 +3,9 @@ import Link from 'next/link';
 import type { MemberActivity } from '@gbti/db';
 
 import { Avatar } from '@/components/ui/Avatar';
+import { LinkPending } from '@/components/ui/LinkPending';
 import { Reveal } from '@/components/ui/Reveal';
-import { formatCount, formatDuration, formatLastSeen } from '@/lib/format';
+import { formatDuration, formatLastSeen } from '@/lib/format';
 import { periodHref } from '@/lib/overviewQuery';
 import type { Period } from '@/lib/period';
 
@@ -30,14 +31,15 @@ export function LeastActiveList({ members, period }: LeastActiveListProps) {
                 </span>
                 <span className={styles.title}>{m.displayName}</span>
                 <span className={styles.meta}>
-                  온라인 {formatDuration(m.onlineSeconds)} · 음성 {formatDuration(m.voiceSeconds)} · 메시지{' '}
-                  {formatCount(m.messageCount)}
+                  온라인 {formatDuration(m.onlineSeconds)} · 음성 {formatDuration(m.voiceSeconds)}
                 </span>
               </span>
-              <span className={styles.arrow} aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12L12 2M12 2H4M12 2V10" />
-                </svg>
+              <span className={styles.arrow}>
+                <LinkPending size={14}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2 12L12 2M12 2H4M12 2V10" />
+                  </svg>
+                </LinkPending>
               </span>
             </Link>
           </Reveal>

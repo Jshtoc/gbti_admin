@@ -11,8 +11,5 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run generate -w @gbti/db",
     "db:migrate": "npm run migrate -w @gbti/db"
-  },
-  "devDependencies": {
-    "typescript": "~5.9.3"
   }
 }

@@ -6,13 +6,14 @@
 
 - `packages/db` — Drizzle 스키마(`src/schema.ts`), 마이그레이션(`migrations/`), 집계 쿼리(`src/queries.ts`). 봇과 웹이 함께 쓴다.
 - `apps/web` — Next.js 16 대시보드. `DATA_SOURCE=mock`(기본)이면 `src/lib/repository/mock.ts`의 시드 고정 목데이터, `db`면 PostgreSQL.
-- `apps/bot` — (예정) discord.js 봇. `packages/db` 스키마에 구간 데이터를 기록한다.
+- `apps/bot` — discord.js 봇. `src/tracker.ts`(디스코드와 무관한 기록 로직, DB에 구간 기록) ← `src/bot.ts`(디스코드 이벤트를 받아 그 순간의 상태를 값으로 넘김). DB 쓰기는 `queue.ts`로 직렬 실행. 봇 계정·봇 유저는 음성/상태/메시지 기록에서 제외.
+- 봇은 1분마다 `bot_status.last_heartbeat_at` 갱신. 재시작 시 열린 구간을 마지막 하트비트 시각에 닫고(꺼져 있던 시간은 집계 안 함) 현재 상태로 다시 연다. 정상 종료(SIGINT/SIGTERM)는 지금 시각으로 닫는다.
 
 ## 데이터 규칙
 
 - 모든 활동은 `[started_at, ended_at)` 구간으로 저장, `ended_at` null = 진행 중. 유저당 열린 음성/온라인 구간은 1개(부분 유니크 인덱스).
 - "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
-- 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
+- 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할하·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
 - 메시지는 `message_counts_daily`에 메시지가 올라온 채널 ID 그대로(스레드면 스레드 ID) 개수만 저장. 채널 이름/종류/상위 채널은 `channels` 테이블(봇이 upsert). 화면에선 스레드를 상위 채널 아래로 묶는다(`lib/messageChannels.ts`).
 - 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
 - 일 단위 집계는 Asia/Seoul 자정 기준.
@@ -28,6 +29,7 @@
 ## 명령
 
 - `npm run dev` — 대시보드 (apps/web). 포트 지정은 `cd apps/web && npx next dev --port 3100`
+- `npm run bot` — 디스코드 봇 실행 (`apps/bot/.env`에 DISCORD_TOKEN / DISCORD_GUILD_ID / DATABASE_URL)
 - `npm run typecheck`
 - `npm run db:generate` — 스키마 변경 후 마이그레이션 생성 / `npm run db:migrate` — 적용 (앱 시작 시 자동 실행하지 않는다)
 

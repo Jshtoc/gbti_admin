@@ -151,3 +151,14 @@ export const messageCountsDaily = pgTable(
     index('message_counts_daily_guild_day_idx').on(t.guildId, t.day),
   ],
 );
+
+/**
+ * 봇 상태. 봇이 1분마다 last_heartbeat_at을 갱신한다.
+ * 봇이 꺼졌다 켜지면 열려 있던 구간들을 마지막 하트비트 시각으로 닫아서
+ * 꺼져 있던 동안이 체류 시간으로 잘못 집계되지 않게 한다.
+ */
+export const botStatus = pgTable('bot_status', {
+  guildId: text('guild_id').primaryKey(),
+  startedAt: tstz('started_at').notNull(),
+  lastHeartbeatAt: tstz('last_heartbeat_at').notNull(),
+});

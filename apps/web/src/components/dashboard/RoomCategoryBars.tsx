@@ -37,7 +37,7 @@ export function RoomCategoryBars({ categories }: RoomCategoryBarsProps) {
         }))}
       />
       <p className={styles.rule}>
-        방 제목에 <b>할하방·할거·각자</b>가 있으면 <b>할하방</b>, 아니면 방 안에서 게임 상태가 보이는 멤버의 게임(여러 개면 가장 많이 하는
+        방 제목에 <b>할하·할거·각자</b>가 있으면 <b>할하방</b>, 아니면 방 안에서 게임 상태가 보이는 멤버의 게임(여러 개면 가장 많이 하는
         게임), 아무 정보도 없으면 <b>정보미표시방</b>으로 분류합니다.
       </p>
     </>

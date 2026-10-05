@@ -494,7 +494,10 @@ export function createMockRepository(): DashboardRepository {
           totals.set(key, current);
         }
       }
-      return [...totals.values()].sort((x, y) => y.seconds - x.seconds);
+      // SQL과 같은 순서: 시간 많은 순, 같으면 이름순
+      return [...totals.values()].sort(
+        (x, y) => y.seconds - x.seconds || (x.label < y.label ? -1 : x.label > y.label ? 1 : 0),
+      );
     },
   };
 }

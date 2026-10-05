@@ -318,7 +318,7 @@ export async function getRoomCategoryTimes(
     having sum(greatest(0, extract(epoch from
         least(${endOf('v')}, ${endOf('r')}, ${iso(range.to)}::timestamptz)
         - greatest(v.started_at, r.started_at, ${iso(range.from)}::timestamptz)))) > 0
-    order by seconds desc
+    order by seconds desc, label
   `);
 
   return rows.map((r) => ({ kind: r.kind, label: r.label, seconds: r.seconds }));

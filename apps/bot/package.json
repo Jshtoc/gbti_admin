@@ -1,0 +1,22 @@
+{
+  "name": "@gbti/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gbti/db": "*",
+    "discord.js": "^14.27.0",
+    "drizzle-orm": "^0.45.3",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "~5.9.3"
+  }
+}

@@ -126,6 +126,12 @@ export function createBot(tracker: Tracker) {
   });
   const queue = createSerialQueue();
   const knownChannels = new Set<string>();
+  /**
+   * 멤버별 마지막으로 기록한 상태·게임. 디스코드는 게임 상세 문구만 바뀌어도 상태 변경 이벤트를 자주 보내므로,
+   * 기록할 내용이 실제로 바뀐 경우에만 DB에 쓴다 (봇 서버와 DB가 멀어도 큐가 밀리지 않게).
+   */
+  const lastPresence = new Map<string, { status: PresenceStatus; gamesKey: string }>();
+  const gamesKeyOf = (games: string[]) => [...games].sort().join('\u0000');
   let heartbeatTimer: NodeJS.Timeout | undefined;
   let initialized = false;
 
@@ -143,6 +149,8 @@ export function createBot(tracker: Tracker) {
     const snapshot = await readSnapshot(guild);
     const at = new Date();
     for (const c of snapshot.channels) knownChannels.add(c.channelId);
+    lastPresence.clear();
+    for (const p of snapshot.presences) lastPresence.set(p.userId, { status: p.status, gamesKey: gamesKeyOf(p.games) });
     await queue.enqueue(`recover (${reason})`, () => tracker.recover(snapshot, at));
     console.log(
       `[bot] ${reason}: ${guild.name} · 멤버 ${snapshot.members.length} · 음성 ${snapshot.voice.length} · 사용 중인 방 ${snapshot.rooms.length}`,
@@ -167,10 +175,12 @@ export function createBot(tracker: Tracker) {
             .filter((m) => !m.user.bot && (presenceStatus(m.presence) !== 'offline' || m.voice.channelId))
             .map((m) => m.id)
         : [];
+      // 온라인/음성 중인 멤버의 마지막 접속은 여기서 1분마다 한꺼번에 갱신한다
       void queue.enqueue('heartbeat', async () => {
         await tracker.heartbeat(at);
         await tracker.touchLastSeen(active, at);
       });
+      if (queue.size() > 50) console.warn(`[bot] DB 작업이 밀리고 있습니다 (대기 ${queue.size()}개)`);
     }, HEARTBEAT_MS);
   });
 
@@ -196,6 +206,7 @@ export function createBot(tracker: Tracker) {
   client.on(Events.GuildMemberRemove, (member: GuildMember | PartialGuildMember) => {
     if (!isOurGuild(member.guild.id)) return;
     const at = new Date();
+    lastPresence.delete(member.id);
     void queue.enqueue('member remove', () => tracker.markMemberLeft(member.id, at));
   });
 
@@ -221,18 +232,25 @@ export function createBot(tracker: Tracker) {
   // ─── 온라인 상태 / 게임 ───
   client.on(Events.PresenceUpdate, (_old, presence) => {
     if (!isOurGuild(presence.guild?.id) || presence.user?.bot || presence.member?.user.bot) return;
-    const at = new Date();
     const userId = presence.userId;
     const status = presenceStatus(presence);
     const games = playingGames(presence);
+    const gamesKey = gamesKeyOf(games);
 
+    // 상태도 게임도 그대로면(게임 상세 문구만 바뀐 경우 등) 기록할 게 없다
+    const prev = lastPresence.get(userId);
+    if (prev && prev.status === status && prev.gamesKey === gamesKey) return;
+    lastPresence.set(userId, { status, gamesKey });
+
+    const at = new Date();
     void queue.enqueue('presence', async () => {
-      await tracker.setPresence(userId, status, at);
-      await tracker.setActivities(userId, games, at);
-      await tracker.touchLastSeen([userId], at);
+      if (prev?.status !== status) await tracker.setPresence(userId, status, at);
+      if (prev?.gamesKey !== gamesKey) await tracker.setActivities(userId, games, at);
+      // 오프라인이 된 순간이 마지막 접속 (온라인 중에는 하트비트가 갱신)
+      if (status === 'offline') await tracker.touchLastSeen([userId], at);
     });
-    // 음성 채널에 있으면 그 방의 종류가 바뀔 수 있다
-    refreshRoom(presence.member?.voice.channel ?? null, at);
+    // 게임이 바뀌었고 음성 채널에 있으면 그 방의 종류가 바뀔 수 있다
+    if (prev?.gamesKey !== gamesKey) refreshRoom(presence.member?.voice.channel ?? null, at);
   });
 
   // ─── 채널 ───
@@ -276,10 +294,8 @@ export function createBot(tracker: Tracker) {
       upsertChannel(channel, 'channel (message)');
     }
     const userId = message.author.id;
-    void queue.enqueue('message', async () => {
-      await tracker.countMessage(userId, channel.id, at);
-      await tracker.touchLastSeen([userId], at);
-    });
+    // 메시지를 보내는 멤버는 온라인이라 마지막 접속은 하트비트가 갱신한다
+    void queue.enqueue('message', () => tracker.countMessage(userId, channel.id, at));
   });
 
   client.on(Events.Error, (error) => console.error('[bot] discord 오류:', error));

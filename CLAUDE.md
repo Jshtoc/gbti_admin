@@ -33,6 +33,7 @@
 
 - `npm run dev` — 대시보드 (apps/web). 포트 지정은 `cd apps/web && npx next dev --port 3100`
 - `npm run bot` — 디스코드 봇 실행 (`apps/bot/.env`에 DISCORD_TOKEN / DISCORD_GUILD_ID / DATABASE_URL)
+- 봇 서버(Google Cloud e2-micro, Ubuntu): 설치 `bash <(curl -fsSL https://raw.githubusercontent.com/Jshtoc/gbti_admin/main/deploy/bot/install.sh)`, 업데이트 `bash /opt/gbti_admin/deploy/bot/update.sh`, 로그 `sudo journalctl -u gbti-bot -f`. systemd 서비스 `gbti-bot`(자동 재시작). **봇은 반드시 한 곳에서만 실행**(두 개가 돌면 기록이 중복된다).
 - `npm run typecheck`
 - `npm run db:generate` — 스키마 변경 후 마이그레이션 생성 / `npm run db:migrate` — 적용 (앱 시작 시 자동 실행하지 않는다)
 

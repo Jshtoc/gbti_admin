@@ -16,6 +16,7 @@ import { formatCompact, formatDuration, toHours } from '@/lib/format';
 import { leastActive, parseMemberSort, sortMembers } from '@/lib/memberSort';
 import { overviewHref, periodHref, type OverviewQuery } from '@/lib/overviewQuery';
 import { parsePeriod, periodLabel, periodSpanLabel, toDateRange } from '@/lib/period';
+import { requireSession } from '@/lib/auth/server';
 import { getRepository } from '@/lib/repository';
 
 import styles from './dashboard.module.css';
@@ -28,6 +29,7 @@ interface OverviewPageProps {
 }
 
 export default async function OverviewPage({ searchParams }: OverviewPageProps) {
+  await requireSession();
   const params = await searchParams;
   const period = parsePeriod(params);
   const sort = parseMemberSort(params.sort);

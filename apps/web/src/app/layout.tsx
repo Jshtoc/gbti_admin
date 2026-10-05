@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Jua, Noto_Sans_KR, Syne } from 'next/font/google';
 
 import { SiteHeader } from '@/components/ui/SiteHeader';
+import { isLoggedIn } from '@/lib/auth/server';
 
 import './globals.css';
 
@@ -20,11 +21,12 @@ export const metadata: Metadata = {
   description: '디스코드 서버 멤버 활동 대시보드',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const loggedIn = await isLoggedIn();
   return (
     <html lang="ko" className={`${syne.variable} ${inter.variable} ${jua.variable} ${notoKr.variable}`}>
       <body>
-        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} />
+        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} loggedIn={loggedIn} />
         <main>{children}</main>
       </body>
     </html>

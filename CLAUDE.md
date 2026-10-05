@@ -19,6 +19,12 @@
 - 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.
 - raw `sql` 파라미터에 `Date`를 그대로 넘기지 말 것(postgres.js가 직렬화 못 함) → `iso()` 사용. 타임스탬프는 epoch ms로 받아 `new Date()`로 변환.
 
+## 인증
+
+- 관리자 1명, ID/PW는 환경 변수 `ADMIN_ID` / `ADMIN_PASSWORD` (공개 저장소라 코드·커밋에 넣지 않는다. 로컬은 `apps/web/.env.local`).
+- 로그인 성공 시 HMAC 서명 세션 쿠키(`gbti_session`, httpOnly, 30일). 서명 키는 ID/PW(+선택 `AUTH_SECRET`)에서 만들므로 비밀번호를 바꾸면 기존 세션이 끊긴다.
+- `src/proxy.ts`(Next 16의 middleware)가 비로그인 요청을 `/login?next=...`로 보내고, 각 페이지도 `requireSession()`으로 한 번 더 확인한다. 새 페이지를 만들면 `requireSession()`을 꼭 넣는다.
+
 ## 명령
 
 - `npm run dev` — 대시보드 (apps/web). 포트 지정은 `cd apps/web && npx next dev --port 3100`

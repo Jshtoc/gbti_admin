@@ -12,6 +12,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { formatCompact, formatDateTime, formatDuration, formatLastSeen, toHours } from '@/lib/format';
 import { periodHref } from '@/lib/overviewQuery';
 import { parsePeriod, periodSpanLabel, toDateRange } from '@/lib/period';
+import { requireSession } from '@/lib/auth/server';
 import { getRepository } from '@/lib/repository';
 
 import styles from '../../dashboard.module.css';
@@ -26,6 +27,7 @@ interface MemberPageProps {
 
 export default async function MemberPage({ params, searchParams }: MemberPageProps) {
   const [{ userId }, query] = await Promise.all([params, searchParams]);
+  await requireSession(`/members/${userId}`);
   const period = parsePeriod(query);
   const range = toDateRange(period);
   const repo = getRepository();

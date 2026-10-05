@@ -18,6 +18,8 @@
 - 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
 - 일 단위 집계는 Asia/Seoul 자정 기준.
 - 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.
+- DB는 Supabase. 봇·마이그레이션은 **Session pooler(:5432)**, Vercel 대시보드는 **Transaction pooler(:6543)** 주소를 쓴다(둘 다 `?sslmode=require`). 6543이면 `client.ts`가 prepared statement를 자동으로 끈다.
+- Supabase는 public 테이블을 REST API로 자동 공개하므로 **새 테이블을 만들면 RLS를 켜는 마이그레이션을 같이 추가**한다(`0004_enable_rls.sql` 참고, 정책 없음 = API 차단, 앱은 postgres 계정이라 영향 없음).
 - raw `sql` 파라미터에 `Date`를 그대로 넘기지 말 것(postgres.js가 직렬화 못 함) → `iso()` 사용. 타임스탬프는 epoch ms로 받아 `new Date()`로 변환.
 
 ## 인증

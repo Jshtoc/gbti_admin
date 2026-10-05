@@ -5,8 +5,20 @@ import * as schema from './schema';
 
 export type Database = ReturnType<typeof createDb>;
 
+/**
+ * Supabase Transaction pooler(포트 6543, PgBouncer 트랜잭션 모드)는 prepared statement를 지원하지 않는다.
+ * 서버리스(Vercel)는 이 주소를 쓰므로 포트로 판별해 끈다. 봇은 Session pooler(5432)를 쓴다.
+ */
+function isTransactionPooler(url: string): boolean {
+  try {
+    return new URL(url).port === '6543';
+  } catch {
+    return false;
+  }
+}
+
 function createDb(url: string) {
-  return drizzle(postgres(url, { max: 10 }), { schema });
+  return drizzle(postgres(url, { max: 10, prepare: !isTransactionPooler(url) }), { schema });
 }
 
 let instance: Database | undefined;

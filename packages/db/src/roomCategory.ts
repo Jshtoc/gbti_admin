@@ -9,6 +9,19 @@
 // 봇은 방 인원 또는 방 안 멤버의 게임 상태가 바뀔 때마다 이 함수로 다시 판정하고,
 // 결과가 바뀌면 voice_room_states의 현재 구간을 닫고 새 구간을 연다.
 
+/**
+ * 게임 이름 별칭. 디스코드가 알려주는 이름(런처 등)을 실제 게임으로 묶는다. 키는 소문자로.
+ * 봇이 기록할 때 적용되므로, 여기를 바꾸면 이미 쌓인 기록은 DB에서 따로 고쳐야 한다.
+ */
+const GAME_ALIASES: Record<string, string> = {
+  modrinth: 'Minecraft', // 마인크래프트 모드 런처
+};
+
+export function normalizeGameName(name: string): string {
+  const trimmed = name.trim();
+  return GAME_ALIASES[trimmed.toLowerCase()] ?? trimmed;
+}
+
 export const HANGOUT_KEYWORDS = ['할하방', '할하', '할거', '각자'] as const;
 export const HANGOUT_LABEL = '할하방';
 export const UNKNOWN_LABEL = '정보미표시방';

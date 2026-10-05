@@ -14,6 +14,7 @@
 - 모든 활동은 `[started_at, ended_at)` 구간으로 저장, `ended_at` null = 진행 중. 유저당 열린 음성/온라인 구간은 1개(부분 유니크 인덱스).
 - "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
 - 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할하·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
+- 게임 이름 별칭은 `roomCategory.ts`의 `GAME_ALIASES` (예: Modrinth → Minecraft). 봇이 기록할 때 적용하므로 별칭을 추가하면 기존 DB 기록(activity_sessions.activity_name, voice_room_states.category_label)도 UPDATE로 맞춰야 한다.
 - 메시지는 `message_counts_daily`에 메시지가 올라온 채널 ID 그대로(스레드면 스레드 ID) 개수만 저장. 채널 이름/종류/상위 채널은 `channels` 테이블(봇이 upsert). 화면에선 스레드를 상위 채널 아래로 묶는다(`lib/messageChannels.ts`).
 - 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
 - 일 단위 집계는 Asia/Seoul 자정 기준.

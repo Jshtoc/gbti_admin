@@ -12,6 +12,8 @@ import {
   type VoiceBasedChannel,
 } from 'discord.js';
 
+import { normalizeGameName } from '@gbti/db/roomCategory';
+
 import { createSerialQueue } from './queue';
 import type { ChannelInfo, GuildSnapshot, MemberInfo, PresenceStatus, RoomOccupant, Tracker } from './tracker';
 
@@ -38,10 +40,11 @@ function presenceStatus(presence: Presence | null | undefined): PresenceStatus {
   return status === 'online' || status === 'idle' || status === 'dnd' ? status : 'offline';
 }
 
-/** "게임 중" 활동만 (음악 듣는 중, 사용자 지정 상태, 방송 등은 제외) */
+/** "게임 중" 활동만 (음악 듣는 중, 사용자 지정 상태, 방송 등은 제외). 런처 이름은 실제 게임으로 묶는다 */
 function playingGames(presence: Presence | null | undefined): string[] {
   if (!presence || presenceStatus(presence) === 'offline') return [];
-  return presence.activities.filter((a) => a.type === ActivityType.Playing).map((a) => a.name);
+  const names = presence.activities.filter((a) => a.type === ActivityType.Playing).map((a) => normalizeGameName(a.name));
+  return [...new Set(names)];
 }
 
 function roomOccupants(channel: VoiceBasedChannel): RoomOccupant[] {

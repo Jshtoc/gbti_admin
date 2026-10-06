@@ -8,12 +8,11 @@ import type {
   MemberActivity,
   MemberRef,
   PartnerTime,
-  RoomCategoryTime,
-  VoiceSessionRow,
+  VoiceSessionGroup,
 } from '@gbti/db';
 import { isExcludedFromStats } from '@gbti/db/memberFilter';
 import { RETENTION_DAYS } from '@gbti/db/retention';
-import { classifyRoom, type RoomCategoryKind } from '@gbti/db/roomCategory';
+import { classifyRoom, isHiddenSessionChannel, type RoomCategoryKind } from '@gbti/db/roomCategory';
 
 import { clippedSeconds, DAY_MS, kstDayKey, kstMidnight } from '../time';
 import type { DashboardRepository } from './types';
@@ -399,49 +398,25 @@ export function createMockRepository(): DashboardRepository {
         .sort((x, y) => y.seconds - x.seconds);
     },
 
-    async getRecentVoiceSessions(userId, limit = 10) {
-      return data.voice
-        .filter((v) => v.userId === userId)
-        .sort((x, y) => y.startedAt.getTime() - x.startedAt.getTime())
-        .slice(0, limit)
-        .map((v): VoiceSessionRow => ({
-          id: v.id,
-          channelName: v.channelName,
-          startedAt: v.startedAt,
-          endedAt: v.endedAt,
-        }));
-    },
-
-    async getRoomCategoryTimes(range, userId) {
+    async getVoiceSessionGroups(userId, range, limit = 8) {
       const now = new Date();
-      const roomsByChannel = new Map<string, RoomStateInterval[]>();
-      for (const r of data.rooms) {
-        if (!overlaps(r, range, now)) continue;
-        const list = roomsByChannel.get(r.channelId) ?? [];
-        list.push(r);
-        roomsByChannel.set(r.channelId, list);
-      }
-
-      const totals = new Map<string, RoomCategoryTime>();
+      const groups = new Map<string, VoiceSessionGroup>();
       for (const v of voiceInRange(range, now)) {
-        if ((userId && v.userId !== userId) || !isCounted(v.userId)) continue;
-        for (const r of roomsByChannel.get(v.channelId) ?? []) {
-          // 세션 ∩ 방 종류 구간 ∩ 조회 기간
-          const start = new Date(Math.max(v.startedAt.getTime(), r.startedAt.getTime()));
-          const end = new Date(Math.min(endOf(v, now).getTime(), endOf(r, now).getTime()));
-          if (end <= start) continue;
-          const seconds = clippedSeconds(start, end, range);
-          if (seconds === 0) continue;
-          const key = `${r.kind}|${r.label}`;
-          const current = totals.get(key) ?? { kind: r.kind, label: r.label, seconds: 0 };
-          current.seconds += seconds;
-          totals.set(key, current);
+        if (v.userId !== userId || isHiddenSessionChannel(v.channelName)) continue;
+        const seconds = clippedSeconds(v.startedAt, endOf(v, now), range);
+        if (seconds === 0) continue;
+        const g = groups.get(v.channelName);
+        if (!g) {
+          groups.set(v.channelName, { channelName: v.channelName, count: 1, seconds, lastStartedAt: v.startedAt, live: !v.endedAt });
+          continue;
         }
+        g.count += 1;
+        g.seconds += seconds;
+        if (v.startedAt > g.lastStartedAt) g.lastStartedAt = v.startedAt;
+        g.live ||= !v.endedAt;
       }
-      // SQL과 같은 순서: 시간 많은 순, 같으면 이름순
-      return [...totals.values()].sort(
-        (x, y) => y.seconds - x.seconds || (x.label < y.label ? -1 : x.label > y.label ? 1 : 0),
-      );
+      return [...groups.values()].sort((x, y) => y.lastStartedAt.getTime() - x.lastStartedAt.getTime()).slice(0, limit);
     },
+
   };
 }

@@ -57,3 +57,10 @@ export function classifyRoom(channelName: string, games: string[]): RoomCategory
   if (distinct.size === 1) return { kind: 'game', label: [...distinct][0]! };
   return { kind: 'unknown', label: UNKNOWN_LABEL };
 }
+
+/** 음성 세션 목록에서 숨기는 채널 (방 만들기용 대기 채널 등). 이름에 이 글자가 들어가면 뺀다 */
+export const HIDDEN_SESSION_CHANNEL_KEYWORDS = ['음성방생성'];
+
+export function isHiddenSessionChannel(channelName: string): boolean {
+  return HIDDEN_SESSION_CHANNEL_KEYWORDS.some((keyword) => channelName.includes(keyword));
+}

@@ -12,8 +12,7 @@ export function createDbRepository(guildId: string): DashboardRepository {
     getPartners: (userId, range, limit) => queries.getPartners(guildId, userId, range, limit),
     getDailyVoice: (range, userId) => queries.getDailyVoice(guildId, range, userId),
     getGameTimes: (userId, range) => queries.getGameTimes(guildId, userId, range),
-    getRecentVoiceSessions: (userId, limit) =>
-      queries.getRecentVoiceSessions(guildId, userId, limit),
-    getRoomCategoryTimes: (range, userId) => queries.getRoomCategoryTimes(guildId, range, userId),
+    getVoiceSessionGroups: (userId, range, limit) =>
+      queries.getVoiceSessionGroups(guildId, userId, range, limit),
   };
 }

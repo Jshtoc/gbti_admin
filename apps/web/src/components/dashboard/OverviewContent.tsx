@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { BarList } from '@/components/dashboard/BarList';
 import { LeastActiveList } from '@/components/dashboard/LeastActiveList';
 import { MemberTable } from '@/components/dashboard/MemberTable';
-import { RoomCategoryBars } from '@/components/dashboard/RoomCategoryBars';
+import { VoiceSessionList } from '@/components/dashboard/VoiceSessionList';
 import { Avatar } from '@/components/ui/Avatar';
 import { Reveal } from '@/components/ui/Reveal';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -37,11 +37,11 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   const selected = members.find((m) => m.userId === memberId);
   const query: OverviewQuery = { period, sort, member: selected?.userId };
 
-  // 전체 보기: 서버 듀오 순위 / 멤버 선택: 그 멤버의 상대 순위 + 방 종류별 체류 시간
-  const [pairs, partners, rooms] = await Promise.all([
+  // 전체 보기: 서버 듀오 순위 / 멤버 선택: 그 멤버의 상대 순위 + 방제목별 음성 세션
+  const [pairs, partners, recent] = await Promise.all([
     selected ? [] : repo.getCoPlayPairs(range, 8),
     selected ? repo.getPartners(selected.userId, range, 8) : [],
-    selected ? repo.getRoomCategoryTimes(range, selected.userId) : [],
+    selected ? repo.getVoiceSessionGroups(selected.userId, range, 8) : [],
   ]);
 
   const totalVoice = members.reduce((sum, m) => sum + m.voiceSeconds, 0);
@@ -104,11 +104,11 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
       {selected ? (
         <>
           <div className={styles.split}>
-            <section className={styles.section} aria-labelledby="rooms">
+            <section className={styles.section} aria-labelledby="recent">
               <SectionHeader
-                eyebrow="Voice rooms · Member"
-                title={`${selected.displayName}의 방 종류별 체류 시간`}
-                id="rooms"
+                eyebrow="Voice sessions · Member"
+                title={`${selected.displayName}의 방제목별 음성 세션`}
+                id="recent"
                 aside={
                   <span className={styles.asideLinks}>
                     <Link href={periodHref(`/members/${selected.userId}`, period)}>멤버 상세 →</Link>
@@ -119,9 +119,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
                 }
               />
               <Reveal>
-                <div className={styles.panel}>
-                  <RoomCategoryBars categories={rooms} />
-                </div>
+                <VoiceSessionList groups={recent} />
               </Reveal>
             </section>
 

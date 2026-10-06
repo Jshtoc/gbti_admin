@@ -52,16 +52,15 @@ export interface GameTime {
   seconds: number;
 }
 
-/** 방 종류별 체류 시간 (멤버별 체류 시간의 합 = 인원 × 시간) */
-export interface RoomCategoryTime {
-  kind: 'hangout' | 'game' | 'unknown';
-  label: string;
-  seconds: number;
-}
-
-export interface VoiceSessionRow {
-  id: number;
+/** 같은 채널 이름(방제목)으로 묶은 음성 세션 */
+export interface VoiceSessionGroup {
   channelName: string;
-  startedAt: Date;
-  endedAt: Date | null;
+  /** 묶인 세션 수 */
+  count: number;
+  /** 조회 기간 안 체류 시간 합 */
+  seconds: number;
+  /** 가장 최근 세션 시작 시각 */
+  lastStartedAt: Date;
+  /** 진행 중인 세션이 있으면 true */
+  live: boolean;
 }

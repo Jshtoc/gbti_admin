@@ -2,6 +2,7 @@ import { sql, type SQL } from 'drizzle-orm';
 
 import { getDb } from './client';
 import { EXCLUDED_NAME_TAGS } from './memberFilter';
+import { HIDDEN_SESSION_CHANNEL_KEYWORDS } from './roomCategory';
 import type {
   CoPlayPair,
   DailyVoice,
@@ -10,8 +11,7 @@ import type {
   MemberActivity,
   MemberListItem,
   PartnerTime,
-  RoomCategoryTime,
-  VoiceSessionRow,
+  VoiceSessionGroup,
 } from './types';
 
 const TZ = 'Asia/Seoul';
@@ -296,65 +296,45 @@ export async function getGameTimes(
   return rows.map((r) => ({ activityName: r.activity_name, seconds: r.seconds }));
 }
 
-/** 멤버의 최근 음성 세션 */
-export async function getRecentVoiceSessions(
+/** 멤버의 음성 세션을 채널 이름(방제목)별로 묶은 것. 최근에 들어간 순 */
+export async function getVoiceSessionGroups(
   guildId: string,
   userId: string,
-  limit = 10,
-): Promise<VoiceSessionRow[]> {
+  range: DateRange,
+  limit = 8,
+): Promise<VoiceSessionGroup[]> {
+  const hiddenChannels = sql.join(
+    HIDDEN_SESSION_CHANNEL_KEYWORDS.map((keyword) => sql`and position(${keyword} in v.channel_name) = 0`),
+    sql` `,
+  );
   const rows = await getDb().execute<{
-    id: number;
     channel_name: string;
-    started_ms: number;
-    ended_ms: number | null;
+    count: number;
+    seconds: number;
+    last_ms: number;
+    live: boolean;
   }>(sql`
-    select v.id::int as id, v.channel_name,
-      (extract(epoch from v.started_at) * 1000)::float8 as started_ms,
-      (extract(epoch from v.ended_at) * 1000)::float8 as ended_ms
+    select v.channel_name, count(*)::int as count,
+      sum(${clippedSeconds('v', range)})::float8 as seconds,
+      (extract(epoch from max(v.started_at)) * 1000)::float8 as last_ms,
+      bool_or(v.ended_at is null) as live
     from voice_sessions v
     where v.guild_id = ${guildId} and v.user_id = ${userId}
-    order by v.started_at desc
+      and ${overlapsRange('v', range)}
+      and ${clippedSeconds('v', range)} > 0
+      ${hiddenChannels}
+    group by v.channel_name
+    order by max(v.started_at) desc
     limit ${limit}
   `);
 
   return rows.map((r) => ({
-    id: r.id,
     channelName: r.channel_name,
-    startedAt: new Date(r.started_ms),
-    endedAt: r.ended_ms === null ? null : new Date(r.ended_ms),
+    count: r.count,
+    seconds: r.seconds,
+    lastStartedAt: new Date(r.last_ms),
+    live: r.live,
   }));
-}
-
-/**
- * 방 종류별 체류 시간. 멤버 음성 세션 ∩ 방 종류 구간 ∩ 조회 기간을 합산한다 (인원 × 시간).
- * userId를 주면 그 멤버의 체류 시간만.
- */
-export async function getRoomCategoryTimes(
-  guildId: string,
-  range: DateRange,
-  userId?: string,
-): Promise<RoomCategoryTime[]> {
-  const userFilter = userId ? sql`and v.user_id = ${userId}` : sql``;
-  const rows = await getDb().execute<{ kind: RoomCategoryTime['kind']; label: string; seconds: number }>(sql`
-    select r.category_kind as kind, r.category_label as label,
-      sum(${sharedSeconds('v', 'r', range)})::float8 as seconds
-    from voice_sessions v
-    join members m on m.guild_id = v.guild_id and m.user_id = v.user_id and ${notExcludedMember('m')}
-    join voice_room_states r
-      on r.guild_id = v.guild_id
-     and r.channel_id = v.channel_id
-     and v.started_at < ${endOf('r')}
-     and r.started_at < ${endOf('v')}
-    where v.guild_id = ${guildId}
-      and ${overlapsRange('v', range)}
-      and ${overlapsRange('r', range)}
-      ${userFilter}
-    group by r.category_kind, r.category_label
-    having sum(${sharedSeconds('v', 'r', range)}) > 0
-    order by seconds desc, label
-  `);
-
-  return rows.map((r) => ({ kind: r.kind, label: r.label, seconds: r.seconds }));
 }
 
 /** 현재 서버에 있는 (봇 아닌) 멤버 목록. 멤버 검색/선택용 가벼운 조회 */

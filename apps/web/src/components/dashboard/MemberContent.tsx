@@ -1,10 +1,11 @@
 import { BarList } from '@/components/dashboard/BarList';
 import { DailyVoiceChart } from '@/components/dashboard/DailyVoiceChart';
+import { VoiceSessionList } from '@/components/dashboard/VoiceSessionList';
 import { Avatar } from '@/components/ui/Avatar';
 import { Reveal } from '@/components/ui/Reveal';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatTile } from '@/components/ui/StatTile';
-import { formatDateTime, formatDuration, formatLastSeen, toHours } from '@/lib/format';
+import { formatLastSeen, toHours } from '@/lib/format';
 import { periodHref } from '@/lib/overviewQuery';
 import { periodSpanLabel, toDateRange, type Period } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
@@ -28,7 +29,7 @@ export async function MemberContent({ userId, displayName, period }: MemberConte
     repo.getPartners(userId, range, 5),
     repo.getGameTimes(userId, range),
     repo.getDailyVoice(range, userId),
-    repo.getRecentVoiceSessions(userId, 8),
+    repo.getVoiceSessionGroups(userId, range, 8),
   ]);
 
   const member = members.find((m) => m.userId === userId);
@@ -105,25 +106,9 @@ export async function MemberContent({ userId, displayName, period }: MemberConte
       </div>
 
       <section className={styles.section} aria-labelledby="recent">
-        <SectionHeader eyebrow="Recent sessions" title="최근 음성 세션" id="recent" />
+        <SectionHeader eyebrow="Voice sessions" title="방제목별 음성 세션" id="recent" aside="같은 방제목은 하나로 · 최근 순" />
         <Reveal>
-          {recent.length === 0 ? (
-            <p className={memberStyles.empty}>음성 채널 기록이 없습니다.</p>
-          ) : (
-            <ul className={memberStyles.sessions}>
-              {recent.map((s) => (
-                <li key={s.id} className={memberStyles.session}>
-                  <span className={memberStyles.channel}>{s.channelName}</span>
-                  <span className={memberStyles.when}>
-                    {formatDateTime(s.startedAt)} – {s.endedAt ? formatDateTime(s.endedAt) : '진행 중'}
-                  </span>
-                  <span className={memberStyles.duration} data-live={!s.endedAt || undefined}>
-                    {s.endedAt ? formatDuration((s.endedAt.getTime() - s.startedAt.getTime()) / 1000) : 'LIVE'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <VoiceSessionList groups={recent} />
         </Reveal>
       </section>
     </>

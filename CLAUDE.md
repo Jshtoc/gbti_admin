@@ -15,7 +15,7 @@
 - "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
 - 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom`: ① 방제목(한글·영문·숫자만 남겨 비교)에 할하방·할하·할거·각자 → "할하방" ② 방 안에 서로 다른 게임 2개 이상 → "할하방" ③ 게임 1개 → 그 게임 ④ 없으면 "정보미표시방". kind는 `hangout` / `game` / `unknown`. 봇이 판정 결과를 `voice_room_states` 구간으로 기록한다(대시보드의 방 종류별 체류 시간 화면은 2026-10-06 사용자 요청으로 제거, 기록만 유지).
 - 게임 이름 별칭은 `roomCategory.ts`의 `GAME_ALIASES` (예: Modrinth → Minecraft, 리그 오브 레전드 → League of Legends). 같은 게임이 두 이름으로 남으면 ②에서 "여러 게임"으로 잘못 판정되므로 꼭 묶는다. 봇이 기록할 때 적용하므로 별칭을 추가하면 기존 DB 기록(activity_sessions.activity_name, voice_room_states.category_label)도 UPDATE로 맞춰야 한다.
-- 음성 세션 목록(개요 멤버 선택 시·멤버 상세)은 조회 기간 안 세션을 **방제목(channel_name)별로 묶어** 최근 순으로 보여준다(`getVoiceSessionGroups`). 이름에 `음성방생성`이 들어간 채널은 목록에서 뺀다(`roomCategory.ts`의 `HIDDEN_SESSION_CHANNEL_KEYWORDS`, 음성 시간·듀오 집계에는 그대로 포함).
+- 음성 세션 목록(개요 멤버 선택 시·멤버 상세)은 조회 기간 안 세션을 **방제목(channel_name)별로 묶어** 최근 순으로 보여준다(`getVoiceSessionGroups`). 이름에 `음성방생성`이 들어간 채널은 목록과 **음성 시간 집계(멤버 표·KPI·일별 그래프)에서 뺀다**(`roomCategory.ts`의 `EXCLUDED_VOICE_CHANNEL_KEYWORDS`, SQL은 `notExcludedChannel`). 기록은 그대로 두고, 듀오(같이 플레이) 집계에는 그대로 포함한다.
 - **메시지는 수집·조회·표시하지 않는다**(사용자 요청, 2026-10-06). 봇에 GuildMessages 인텐트도 없다. `message_counts_daily`는 그 전에 쌓인 기록만 남은 테이블.
 - `channels` 테이블(봇이 upsert)은 채널 이름/종류. 음성 채널 이름이 바뀌면 방 종류를 다시 판정한다.
 - **보관 기간 30일** (`packages/db/src/retention.ts`의 `RETENTION_DAYS`). 봇이 하루 한 번(시작 직후 첫 하트비트 포함) 끝난 지 30일 지난 구간을 지운다(`tracker.purgeOlderThan`). 진행 중이거나 기간에 걸친 구간은 남긴다.

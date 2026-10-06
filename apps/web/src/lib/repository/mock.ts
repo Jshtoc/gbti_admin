@@ -12,7 +12,7 @@ import type {
 } from '@gbti/db';
 import { isExcludedFromStats } from '@gbti/db/memberFilter';
 import { RETENTION_DAYS } from '@gbti/db/retention';
-import { classifyRoom, isHiddenSessionChannel, type RoomCategoryKind } from '@gbti/db/roomCategory';
+import { classifyRoom, isExcludedVoiceChannel, type RoomCategoryKind } from '@gbti/db/roomCategory';
 
 import { clippedSeconds, DAY_MS, kstDayKey, kstMidnight } from '../time';
 import type { DashboardRepository } from './types';
@@ -282,8 +282,10 @@ export function createMockRepository(): DashboardRepository {
   const COUNTED = MEMBERS.filter((m) => !isExcludedFromStats(m.displayName));
   const isCounted = (userId: string) => !isExcludedFromStats(memberById.get(userId)?.displayName ?? '');
 
+  // SQL과 같은 규칙: 음성방생성 같은 대기 채널은 음성 시간에서 뺀다
+  const countedVoice = data.voice.filter((v) => !isExcludedVoiceChannel(v.channelName));
   const voiceInRange = (range: DateRange, now: Date) =>
-    data.voice.filter((v) => overlaps(v, range, now));
+    countedVoice.filter((v) => overlaps(v, range, now));
 
   return {
     async getMembers() {
@@ -294,7 +296,7 @@ export function createMockRepository(): DashboardRepository {
 
     async getMemberActivity(range) {
       const now = new Date();
-      const voice = sumByUser(data.voice, range, now);
+      const voice = sumByUser(countedVoice, range, now);
       const online = sumByUser(data.presence, range, now);
 
       const games = new Map<string, Map<string, number>>();
@@ -321,7 +323,7 @@ export function createMockRepository(): DashboardRepository {
 
     async getCoPlayPairs(range, limit = 10) {
       const now = new Date();
-      const sessions = voiceInRange(range, now);
+      const sessions = data.voice.filter((v) => overlaps(v, range, now)) // 듀오는 모든 채널 (SQL과 같음);
       const totals = new Map<string, number>();
 
       for (let i = 0; i < sessions.length; i++) {
@@ -347,7 +349,7 @@ export function createMockRepository(): DashboardRepository {
 
     async getPartners(userId, range, limit = 5) {
       const now = new Date();
-      const sessions = voiceInRange(range, now);
+      const sessions = data.voice.filter((v) => overlaps(v, range, now)) // 듀오는 모든 채널 (SQL과 같음);
       const mine = sessions.filter((s) => s.userId === userId);
       const totals = new Map<string, number>();
 
@@ -402,7 +404,7 @@ export function createMockRepository(): DashboardRepository {
       const now = new Date();
       const groups = new Map<string, VoiceSessionGroup>();
       for (const v of voiceInRange(range, now)) {
-        if (v.userId !== userId || isHiddenSessionChannel(v.channelName)) continue;
+        if (v.userId !== userId) continue;
         const seconds = clippedSeconds(v.startedAt, endOf(v, now), range);
         if (seconds === 0) continue;
         const g = groups.get(v.channelName);

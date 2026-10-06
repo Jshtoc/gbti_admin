@@ -2,7 +2,7 @@ import { sql, type SQL } from 'drizzle-orm';
 
 import { getDb } from './client';
 import { EXCLUDED_NAME_TAGS } from './memberFilter';
-import { HIDDEN_SESSION_CHANNEL_KEYWORDS } from './roomCategory';
+import { EXCLUDED_VOICE_CHANNEL_KEYWORDS } from './roomCategory';
 import type {
   CoPlayPair,
   DailyVoice,
@@ -30,6 +30,15 @@ function notExcludedMember(alias: string, { duo = false } = {}): SQL {
     where x.guild_id = ${m}.guild_id and x.user_id = ${m}.user_id and x.scope in ${scopes}
   )`;
   return sql.join([...byTag, byAccount], sql` and `);
+}
+
+/** 음성 시간에서 빼는 채널(음성방생성 등)이 아닌 조건. alias = voice_sessions 테이블 별칭 */
+function notExcludedChannel(alias: string): SQL {
+  const v = sql.raw(alias);
+  return sql.join(
+    EXCLUDED_VOICE_CHANNEL_KEYWORDS.map((keyword) => sql`position(${keyword} in ${v}.channel_name) = 0`),
+    sql` and `,
+  );
 }
 
 /** drizzle의 raw sql 파라미터로는 postgres.js가 Date를 직렬화하지 않으므로 ISO 문자열로 넘긴다. */
@@ -91,7 +100,7 @@ export async function getMemberActivity(
     with voice as (
       select v.user_id, sum(${clippedSeconds('v', range)}) as s
       from voice_sessions v
-      where v.guild_id = ${guildId} and ${overlapsRange('v', range)}
+      where v.guild_id = ${guildId} and ${overlapsRange('v', range)} and ${notExcludedChannel('v')}
       group by v.user_id
     ),
     online as (
@@ -271,6 +280,7 @@ export async function getDailyVoice(
       on v.guild_id = ${guildId}
      and v.started_at < d.de
      and ${endOf('v')} > d.ds
+     and ${notExcludedChannel('v')}
      ${userFilter}
     group by d.day
     order by d.day
@@ -303,10 +313,6 @@ export async function getVoiceSessionGroups(
   range: DateRange,
   limit = 8,
 ): Promise<VoiceSessionGroup[]> {
-  const hiddenChannels = sql.join(
-    HIDDEN_SESSION_CHANNEL_KEYWORDS.map((keyword) => sql`and position(${keyword} in v.channel_name) = 0`),
-    sql` `,
-  );
   const rows = await getDb().execute<{
     channel_name: string;
     count: number;
@@ -322,7 +328,7 @@ export async function getVoiceSessionGroups(
     where v.guild_id = ${guildId} and v.user_id = ${userId}
       and ${overlapsRange('v', range)}
       and ${clippedSeconds('v', range)} > 0
-      ${hiddenChannels}
+      and ${notExcludedChannel('v')}
     group by v.channel_name
     order by max(v.started_at) desc
     limit ${limit}

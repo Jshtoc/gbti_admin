@@ -12,6 +12,7 @@ import {
   type VoiceBasedChannel,
 } from 'discord.js';
 
+import { RETENTION_DAYS } from '@gbti/db/retention';
 import { normalizeGameName } from '@gbti/db/roomCategory';
 
 import { createSerialQueue } from './queue';
@@ -21,6 +22,8 @@ import type { ChannelInfo, GuildSnapshot, MemberInfo, PresenceStatus, RoomOccupa
 // 이벤트가 온 "그 순간"의 상태(방 인원, 보이는 게임)를 여기서 읽어 값으로 넘기고, DB 작업은 큐에서 순서대로 실행한다.
 
 const HEARTBEAT_MS = 60_000;
+/** 오래된 기록 정리 주기 (봇 시작 후 첫 하트비트에 한 번, 이후 하루마다) */
+const PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // ─── 디스코드 객체 → 기록용 값 ──────────────────────────────
 
@@ -135,6 +138,7 @@ export function createBot(tracker: Tracker) {
   const lastPresence = new Map<string, { status: PresenceStatus; gamesKey: string }>();
   const gamesKeyOf = (games: string[]) => [...games].sort().join('\u0000');
   let heartbeatTimer: NodeJS.Timeout | undefined;
+  let lastPurgeAt = 0;
   let initialized = false;
 
   const isOurGuild = (guildId: string | null | undefined) => guildId === tracker.guildId;
@@ -181,6 +185,13 @@ export function createBot(tracker: Tracker) {
         await tracker.heartbeat(at);
         await tracker.touchLastSeen(active, at);
       });
+      if (at.getTime() - lastPurgeAt >= PURGE_INTERVAL_MS) {
+        lastPurgeAt = at.getTime();
+        void enqueue('purge', async () => {
+          const deleted = await tracker.purgeOlderThan(RETENTION_DAYS, at);
+          console.log(`[bot] ${RETENTION_DAYS}일 지난 기록 정리:`, deleted);
+        });
+      }
       if (queue.size() > 50) console.warn(`[bot] DB 작업이 밀리고 있습니다 (대기 ${queue.size()}개)`);
     }, HEARTBEAT_MS);
   });

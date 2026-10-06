@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { DateRange } from '@gbti/db';
+import { RETENTION_DAYS } from '@gbti/db/retention';
 
 import { DAY_MS, kstDayKey } from './time';
 
@@ -21,8 +22,8 @@ export const PERIOD_PRESETS = [
 export type PresetKey = (typeof PERIOD_PRESETS)[number]['key'];
 
 const DEFAULT_PRESET_DAYS = 7;
-/** 너무 긴 기간 조회로 DB에 부담을 주지 않도록 최대 1년 */
-export const MAX_PERIOD_DAYS = 366;
+/** 기록 보관 기간(30일)보다 오래 전은 지워져 있으므로 그 안에서만 고른다 */
+export const MAX_PERIOD_DAYS = RETENTION_DAYS;
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -68,7 +69,10 @@ export function parsePeriod(params: Record<string, unknown>, now = new Date()): 
   let [start, end] = from.data <= to.data ? [from.data, to.data] : [to.data, from.data];
   if (end > today) end = today;
   if (start > end) start = end;
-  if (diffDays(start, end) + 1 > MAX_PERIOD_DAYS) start = addDays(end, -(MAX_PERIOD_DAYS - 1));
+  // 보관 기간보다 오래된 날은 기록이 지워져 있다: 전부 그 이전이면 기본값, 일부면 보관 시작일로 당긴다
+  const oldestDay = addDays(today, -(MAX_PERIOD_DAYS - 1));
+  if (end < oldestDay) return presetPeriod(DEFAULT_PRESET_DAYS, now);
+  if (start < oldestDay) start = oldestDay;
   return { from: start, to: end };
 }
 

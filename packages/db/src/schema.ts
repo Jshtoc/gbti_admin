@@ -70,7 +70,7 @@ export const voiceRoomStates = pgTable(
     channelId: text('channel_id').notNull(),
     /** 판정 당시 방 제목 */
     channelName: text('channel_name').notNull(),
-    categoryKind: text('category_kind', { enum: ['keyword', 'game', 'unknown'] }).notNull(),
+    categoryKind: text('category_kind', { enum: ['hangout', 'game', 'unknown'] }).notNull(),
     categoryLabel: text('category_label').notNull(),
     startedAt: tstz('started_at').notNull(),
     endedAt: tstz('ended_at'),
@@ -162,3 +162,19 @@ export const botStatus = pgTable('bot_status', {
   startedAt: tstz('started_at').notNull(),
   lastHeartbeatAt: tstz('last_heartbeat_at').notNull(),
 });
+
+/**
+ * 통계에서 빼는 멤버 (계정 단위). 닉네임 태그 규칙(memberFilter.ts)과 별개로,
+ * 특정 계정을 지정해서 뺄 때 쓴다. 공개 저장소에 계정 ID를 남기지 않도록 DB에만 둔다.
+ */
+export const statsExcludedMembers = pgTable(
+  'stats_excluded_members',
+  {
+    guildId: text('guild_id').notNull(),
+    userId: text('user_id').notNull(),
+    /** 추가할 때의 닉네임 등 메모 */
+    note: text('note'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] })],
+);

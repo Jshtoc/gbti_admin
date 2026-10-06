@@ -11,6 +11,8 @@ import type {
   RoomCategoryTime,
   VoiceSessionRow,
 } from '@gbti/db';
+import { isExcludedFromStats } from '@gbti/db/memberFilter';
+import { RETENTION_DAYS } from '@gbti/db/retention';
 import { classifyRoom, type RoomCategoryKind } from '@gbti/db/roomCategory';
 
 import { clippedSeconds, DAY_MS, kstDayKey, kstMidnight } from '../time';
@@ -71,9 +73,13 @@ const MEMBERS: MockMember[] = [
   { userId: 'u18', displayName: '잠수함', username: 'submarine', level: 0.08, channels: ['c-val'], soloGame: null, showsActivity: false, inactiveForDays: 26 },
   { userId: 'u19', displayName: '유령회원', username: 'ghost_member', level: 0, channels: [], soloGame: null, showsActivity: false, inactiveForDays: null },
   { userId: 'u20', displayName: '신입생', username: 'freshman', level: 0.5, channels: ['c-talk', 'c-val', 'c-free'], soloGame: 'Overwatch 2', showsActivity: true, inactiveForDays: null },
+  // 통계에서 빠져야 하는 계정 (닉네임 태그)
+  { userId: 'u21', displayName: '[게스트] 지나가던손님', username: 'guest_visitor', level: 0.6, channels: ['c-lol', 'c-talk'], soloGame: null, showsActivity: true, inactiveForDays: null },
+  { userId: 'u22', displayName: '[부계정] 새벽감성2', username: 'dawn_alt', level: 0.4, channels: ['c-lol'], soloGame: 'League of Legends', showsActivity: true, inactiveForDays: null },
 ];
 
-const GENERATED_DAYS = 90;
+/** 실제 DB 보관 기간과 같게 */
+const GENERATED_DAYS = RETENTION_DAYS;
 
 // ─── 생성 ───────────────────────────────────────────────────────
 
@@ -273,13 +279,16 @@ const toRef = (m: MockMember): MemberRef => ({
 export function createMockRepository(): DashboardRepository {
   const data = generate(new Date());
   const memberById = new Map(MEMBERS.map((m) => [m.userId, m]));
+  // SQL과 같은 규칙: [게스트]·[부계정] 닉네임은 통계에서 뺀다
+  const COUNTED = MEMBERS.filter((m) => !isExcludedFromStats(m.displayName));
+  const isCounted = (userId: string) => !isExcludedFromStats(memberById.get(userId)?.displayName ?? '');
 
   const voiceInRange = (range: DateRange, now: Date) =>
     data.voice.filter((v) => overlaps(v, range, now));
 
   return {
     async getMembers() {
-      return MEMBERS.map((member) => ({ ...toRef(member), username: member.username })).sort((a, b) =>
+      return COUNTED.map((member) => ({ ...toRef(member), username: member.username })).sort((a, b) =>
         a.displayName.localeCompare(b.displayName, 'ko'),
       );
     },
@@ -297,7 +306,7 @@ export function createMockRepository(): DashboardRepository {
         games.set(a.userId, perGame);
       }
 
-      return MEMBERS.map((m): MemberActivity => {
+      return COUNTED.map((m): MemberActivity => {
         const topGame = [...(games.get(m.userId) ?? [])].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
 
         return {
@@ -320,7 +329,7 @@ export function createMockRepository(): DashboardRepository {
         for (let j = i + 1; j < sessions.length; j++) {
           const a = sessions[i]!;
           const b = sessions[j]!;
-          if (a.userId === b.userId) continue;
+          if (a.userId === b.userId || !isCounted(a.userId) || !isCounted(b.userId)) continue;
           const seconds = sharedSeconds(a, b, range, now);
           if (seconds === 0) continue;
           const key = a.userId < b.userId ? `${a.userId}|${b.userId}` : `${b.userId}|${a.userId}`;
@@ -345,7 +354,7 @@ export function createMockRepository(): DashboardRepository {
 
       for (const a of mine) {
         for (const b of sessions) {
-          if (b.userId === userId) continue;
+          if (b.userId === userId || !isCounted(b.userId)) continue;
           const seconds = sharedSeconds(a, b, range, now);
           if (seconds > 0) totals.set(b.userId, (totals.get(b.userId) ?? 0) + seconds);
         }
@@ -407,7 +416,7 @@ export function createMockRepository(): DashboardRepository {
 
       const totals = new Map<string, RoomCategoryTime>();
       for (const v of voiceInRange(range, now)) {
-        if (userId && v.userId !== userId) continue;
+        if ((userId && v.userId !== userId) || !isCounted(v.userId)) continue;
         for (const r of roomsByChannel.get(v.channelId) ?? []) {
           // 세션 ∩ 방 종류 구간 ∩ 조회 기간
           const start = new Date(Math.max(v.startedAt.getTime(), r.startedAt.getTime()));

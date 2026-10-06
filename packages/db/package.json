@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
-    "./roomCategory": "./src/roomCategory.ts"
+    "./roomCategory": "./src/roomCategory.ts",
+    "./memberFilter": "./src/memberFilter.ts",
+    "./retention": "./src/retention.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate",

@@ -53,8 +53,8 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   // 멤버 선택 여부에 따라 배치가 달라지는 섹션
   const leastActiveSection = (count: number) => (
     <section className={styles.section} aria-labelledby="least-active">
-      <SectionHeader eyebrow="Least active" title="접속이 가장 적은 멤버" id="least-active" aside="온라인 시간 적은 순" />
-      <LeastActiveList members={leastActive(members, count)} period={period} />
+      <SectionHeader eyebrow="Least active" title="접속이 가장 적은 멤버" id="least-active" aside={`온라인 시간 적은 순 · 전체 ${members.length}명`} />
+      <LeastActiveList members={leastActive(members, members.length)} period={period} pageSize={count} />
     </section>
   );
 

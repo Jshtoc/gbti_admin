@@ -14,7 +14,7 @@
   color: var(--muted);
 }
 
-.kind[data-kind='keyword'] {
+.kind[data-kind='hangout'] {
   border-color: rgba(255, 61, 0, 0.35);
   color: var(--accent2);
 }

@@ -1,6 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 
 import { getDb } from './client';
+import { EXCLUDED_NAME_TAGS } from './memberFilter';
 import type {
   CoPlayPair,
   DailyVoice,
@@ -14,6 +15,20 @@ import type {
 } from './types';
 
 const TZ = 'Asia/Seoul';
+
+/**
+ * 통계에서 빼는 멤버가 아닌 조건. alias = members 테이블 별칭
+ * - 닉네임에 [게스트]·[부계정] 태그가 있는 멤버
+ * - stats_excluded_members 에 지정된 계정
+ */
+function notExcludedMember(alias: string): SQL {
+  const m = sql.raw(alias);
+  const byTag = EXCLUDED_NAME_TAGS.map((tag) => sql`position(${tag} in ${m}.display_name) = 0`);
+  const byAccount = sql`not exists (
+    select 1 from stats_excluded_members x where x.guild_id = ${m}.guild_id and x.user_id = ${m}.user_id
+  )`;
+  return sql.join([...byTag, byAccount], sql` and `);
+}
 
 /** drizzle의 raw sql 파라미터로는 postgres.js가 Date를 직렬화하지 않으므로 ISO 문자열로 넘긴다. */
 const iso = (date: Date) => date.toISOString();
@@ -81,7 +96,7 @@ export async function getMemberActivity(
     left join voice on voice.user_id = m.user_id
     left join online on online.user_id = m.user_id
     left join top_game on top_game.user_id = m.user_id
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
   `);
 
   return rows.map((r) => ({
@@ -135,8 +150,8 @@ export async function getCoPlayPairs(
       p.b_id, mb.display_name as b_name, mb.avatar_url as b_avatar,
       p.seconds::float8 as seconds
     from pairs p
-    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id
-    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id
+    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id and ${notExcludedMember('ma')}
+    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id and ${notExcludedMember('mb')}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -182,7 +197,7 @@ export async function getPartners(
     )
     select p.partner_id, m.display_name, m.avatar_url, p.seconds::float8 as seconds
     from partners p
-    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id
+    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id and ${notExcludedMember('m')}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -292,6 +307,7 @@ export async function getRoomCategoryTimes(
         least(${endOf('v')}, ${endOf('r')}, ${iso(range.to)}::timestamptz)
         - greatest(v.started_at, r.started_at, ${iso(range.from)}::timestamptz))))::float8 as seconds
     from voice_sessions v
+    join members m on m.guild_id = v.guild_id and m.user_id = v.user_id and ${notExcludedMember('m')}
     join voice_room_states r
       on r.guild_id = v.guild_id
      and r.channel_id = v.channel_id
@@ -321,7 +337,7 @@ export async function getMembers(guildId: string): Promise<MemberListItem[]> {
   }>(sql`
     select m.user_id, m.username, m.display_name, m.avatar_url
     from members m
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
     order by m.display_name
   `);
 

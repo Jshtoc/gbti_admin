@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, getTableName, inArray, isNull, lt, sql, type SQL } from 'drizzle-orm';
 
 import type { Database } from '@gbti/db';
 import { classifyRoom } from '@gbti/db/roomCategory';
@@ -7,6 +7,7 @@ import {
   botStatus,
   channels,
   members,
+  messageCountsDaily,
   presenceSessions,
   voiceRoomStates,
   voiceSessions,
@@ -52,9 +53,9 @@ export interface GuildSnapshot {
 }
 
 /** 방 종류 판정. 1인 1게임: 여러 게임을 동시에 켜둔 멤버는 첫 번째 게임만 센다 */
-function roomCategoryOf(channelName: string, occupants: RoomOccupant[], previousLabel?: string) {
+function roomCategoryOf(channelName: string, occupants: RoomOccupant[]) {
   const games = occupants.map((o) => o.games[0]).filter((g): g is string => Boolean(g));
-  return classifyRoom(channelName, games, previousLabel);
+  return classifyRoom(channelName, games);
 }
 
 type IntervalTable =typeof voiceSessions | typeof presenceSessions | typeof activitySessions | typeof voiceRoomStates;
@@ -211,7 +212,7 @@ export class Tracker {
       return;
     }
 
-    const category = roomCategoryOf(channelName, occupants, open?.label);
+    const category = roomCategoryOf(channelName, occupants);
 
     if (open && open.kind === category.kind && open.label === category.label) {
       if (open.name !== channelName) {
@@ -328,6 +329,30 @@ export class Tracker {
         .values({ guildId, startedAt: at, lastHeartbeatAt: at })
         .onConflictDoUpdate({ target: botStatus.guildId, set: { startedAt: at, lastHeartbeatAt: at } });
     });
+  }
+
+  /**
+   * 보관 기간보다 오래 전에 **끝난** 기록을 지운다 (진행 중이거나 기간에 걸친 구간은 남긴다).
+   * @returns 테이블별 삭제 건수
+   */
+  async purgeOlderThan(days: number, at: Date): Promise<Record<string, number>> {
+    const cutoff = new Date(at.getTime() - days * 24 * 60 * 60 * 1000);
+    const deleted: Record<string, number> = {};
+    for (const table of [voiceSessions, presenceSessions, activitySessions, voiceRoomStates] as const) {
+      const t = table as typeof voiceSessions;
+      const rows = await this.db
+        .delete(t)
+        .where(and(eq(t.guildId, this.guildId), lt(t.endedAt, cutoff)))
+        .returning({ id: t.id });
+      deleted[getTableName(table)] = rows.length;
+    }
+    // 예전에 쌓인 메시지 개수 기록 (메시지 수집은 중단됨)
+    const messages = await this.db
+      .delete(messageCountsDaily)
+      .where(and(eq(messageCountsDaily.guildId, this.guildId), lt(messageCountsDaily.day, cutoff.toISOString().slice(0, 10))))
+      .returning({ day: messageCountsDaily.day });
+    deleted.message_counts_daily = messages.length;
+    return deleted;
   }
 
   /** 정상 종료 시: 열린 구간을 지금 시각으로 닫는다 */

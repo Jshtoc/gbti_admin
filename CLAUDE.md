@@ -13,11 +13,13 @@
 
 - 모든 활동은 `[started_at, ended_at)` 구간으로 저장, `ended_at` null = 진행 중. 유저당 열린 음성/온라인 구간은 1개(부분 유니크 인덱스).
 - "같이 플레이" = 같은 음성 채널 구간의 교집합 시간.
-- 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom` (방제목에 할하방·할하·할거·각자 → "할하방" / 방 안 멤버의 보이는 게임 중 최다 / 없으면 "정보미표시방"). 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
-- 게임 이름 별칭은 `roomCategory.ts`의 `GAME_ALIASES` (예: Modrinth → Minecraft). 봇이 기록할 때 적용하므로 별칭을 추가하면 기존 DB 기록(activity_sessions.activity_name, voice_room_states.category_label)도 UPDATE로 맞춰야 한다.
+- 방 종류 = `packages/db/src/roomCategory.ts`의 `classifyRoom`: ① 방제목(한글·영문·숫자만 남겨 비교)에 할하방·할하·할거·각자 → "할하방" ② 방 안에 서로 다른 게임 2개 이상 → "할하방" ③ 게임 1개 → 그 게임 ④ 없으면 "정보미표시방". kind는 `hangout` / `game` / `unknown`. 봇이 판정 결과를 `voice_room_states` 구간으로 기록하고, 체류 시간은 음성 세션 ∩ 방 종류 구간(인원 × 시간)으로 집계한다.
+- 게임 이름 별칭은 `roomCategory.ts`의 `GAME_ALIASES` (예: Modrinth → Minecraft, 리그 오브 레전드 → League of Legends). 같은 게임이 두 이름으로 남으면 ②에서 "여러 게임"으로 잘못 판정되므로 꼭 묶는다. 봇이 기록할 때 적용하므로 별칭을 추가하면 기존 DB 기록(activity_sessions.activity_name, voice_room_states.category_label)도 UPDATE로 맞춰야 한다.
 - **메시지는 수집·조회·표시하지 않는다**(사용자 요청, 2026-10-06). 봇에 GuildMessages 인텐트도 없다. `message_counts_daily`는 그 전에 쌓인 기록만 남은 테이블.
 - `channels` 테이블(봇이 upsert)은 채널 이름/종류. 음성 채널 이름이 바뀌면 방 종류를 다시 판정한다.
-- 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 366일). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
+- **보관 기간 30일** (`packages/db/src/retention.ts`의 `RETENTION_DAYS`). 봇이 하루 한 번(시작 직후 첫 하트비트 포함) 끝난 지 30일 지난 구간을 지운다(`tracker.purgeOlderThan`). 진행 중이거나 기간에 걸친 구간은 남긴다.
+- **통계 제외 멤버**: 닉네임에 `[게스트]`·`[부계정]`이 들어간 멤버(`packages/db/src/memberFilter.ts`). 봇은 기록하되 대시보드의 모든 집계·목록·검색에서 뺀다(SQL은 `notExcludedMember`, 목데이터는 `isExcludedFromStats`). 방 종류 판정에는 포함된다. 특정 계정을 빼려면 `stats_excluded_members` 테이블(DB에만, 공개 저장소에 계정 ID를 남기지 않음)에 guild_id/user_id를 넣는다 — 계정 기준이라 닉네임이 바뀌어도 유지되고 같은 이름의 새 멤버는 영향 없음.
+- 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 `RETENTION_DAYS`일 — 그보다 오래된 날은 보관 시작일로 당긴다). 파싱/프리셋은 `apps/web/src/lib/period.ts`.
 - 일 단위 집계는 Asia/Seoul 자정 기준.
 - 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.
 - DB는 Supabase. 봇·마이그레이션은 **Session pooler(:5432)**, Vercel 대시보드는 **Transaction pooler(:6543)** 주소를 쓴다(둘 다 `?sslmode=require`). 6543이면 `client.ts`가 prepared statement를 자동으로 끈다.

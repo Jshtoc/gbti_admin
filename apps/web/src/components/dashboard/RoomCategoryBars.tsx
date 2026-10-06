@@ -9,7 +9,7 @@ interface RoomCategoryBarsProps {
 
 const KIND_LABEL: Record<RoomCategoryTime['kind'], string> = {
   game: '게임',
-  keyword: '방제목',
+  hangout: '방제목·여러 게임',
   unknown: '미표시',
 };
 
@@ -37,8 +37,8 @@ export function RoomCategoryBars({ categories }: RoomCategoryBarsProps) {
         }))}
       />
       <p className={styles.rule}>
-        방 제목에 <b>할하·할거·각자</b>가 있으면 <b>할하방</b>, 아니면 방 안에서 게임 상태가 보이는 멤버의 게임(여러 개면 가장 많이 하는
-        게임), 아무 정보도 없으면 <b>정보미표시방</b>으로 분류합니다.
+        방 제목에 <b>할하·할거·각자</b>가 있거나(띄어쓰기·기호 무시) 방 안에서 <b>서로 다른 게임이 2개 이상</b> 보이면{' '}
+        <b>할하방</b>, 게임이 하나면 그 게임, 아무 정보도 없으면 <b>정보미표시방</b>으로 분류합니다.
       </p>
     </>
   );

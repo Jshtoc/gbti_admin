@@ -49,7 +49,7 @@ export interface GameTime {
 
 /** 방 종류별 체류 시간 (멤버별 체류 시간의 합 = 인원 × 시간) */
 export interface RoomCategoryTime {
-  kind: 'keyword' | 'game' | 'unknown';
+  kind: 'hangout' | 'game' | 'unknown';
   label: string;
   seconds: number;
 }

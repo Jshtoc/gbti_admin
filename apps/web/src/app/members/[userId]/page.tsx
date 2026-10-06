@@ -10,7 +10,7 @@ import { PageHero } from '@/components/ui/PageHero';
 import { PeriodControl } from '@/components/ui/PeriodControl';
 import { requireSession } from '@/lib/auth/server';
 import { periodHref } from '@/lib/overviewQuery';
-import { parsePeriod, periodLabel } from '@/lib/period';
+import { NIGHT_LABEL, parsePeriod, periodLabel } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
 
 import memberStyles from './member.module.css';
@@ -44,12 +44,13 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
           <span className={memberStyles.heroMeta}>
             <Avatar name={member.displayName} src={member.avatarUrl} size="sm" />
             {periodLabel(period)}
+            {period.night ? ` · 매일 ${NIGHT_LABEL}만` : ''}
           </span>
         }
         aside={<PeriodControl period={period} basePath={`/members/${userId}`} />}
       />
 
-      <Suspense key={`${period.from}|${period.to}`} fallback={<MemberSkeleton />}>
+      <Suspense key={`${period.from}|${period.to}|${period.night ? 'n' : 'a'}`} fallback={<MemberSkeleton />}>
         <MemberContent userId={userId} displayName={member.displayName} period={period} />
       </Suspense>
     </div>

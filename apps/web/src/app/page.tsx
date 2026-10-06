@@ -8,7 +8,7 @@ import { PeriodControl } from '@/components/ui/PeriodControl';
 import { requireSession } from '@/lib/auth/server';
 import { parseMemberSort } from '@/lib/memberSort';
 import type { OverviewQuery } from '@/lib/overviewQuery';
-import { parsePeriod, periodLabel } from '@/lib/period';
+import { NIGHT_LABEL, parsePeriod, periodLabel } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
 
 import styles from './dashboard.module.css';
@@ -37,7 +37,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
       <PageHero
         eyebrow="Server activity"
         title="Overview"
-        description={`${periodLabel(period)} · 음성 채널, 온라인 상태, 게임 활동 집계`}
+        description={`${periodLabel(period)}${period.night ? ` · 매일 ${NIGHT_LABEL}만` : ''} · 음성 채널, 온라인 상태, 게임 활동 집계`}
         aside={
           <div className={styles.filters}>
             <MemberPicker members={members} query={query} />
@@ -51,7 +51,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
       />
 
       {/* key가 바뀌면(기간·멤버·정렬 변경) 새 경계가 되어 데이터를 기다리는 동안 스켈레톤을 보여준다 */}
-      <Suspense key={`${period.from}|${period.to}|${memberId ?? ''}|${sort}`} fallback={<OverviewSkeleton />}>
+      <Suspense key={`${period.from}|${period.to}|${period.night ? 'n' : 'a'}|${memberId ?? ''}|${sort}`} fallback={<OverviewSkeleton />}>
         <OverviewContent period={period} sort={sort} memberId={memberId} />
       </Suspense>
     </div>

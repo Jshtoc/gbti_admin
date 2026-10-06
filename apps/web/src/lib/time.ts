@@ -15,9 +15,13 @@ export function kstDayKey(date: Date): string {
   return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-/** 구간 [start, end)를 range로 잘라낸 길이(초) */
+/** 구간 [start, end)가 집계 구간들(range.windows, 없으면 range 전체)과 겹치는 길이(초)의 합 */
 export function clippedSeconds(start: Date, end: Date, range: DateRange): number {
-  const s = Math.max(start.getTime(), range.from.getTime());
-  const e = Math.min(end.getTime(), range.to.getTime());
-  return Math.max(0, (e - s) / 1000);
+  let total = 0;
+  for (const w of range.windows ?? [range]) {
+    const s = Math.max(start.getTime(), w.from.getTime());
+    const e = Math.min(end.getTime(), w.to.getTime());
+    total += Math.max(0, (e - s) / 1000);
+  }
+  return total;
 }

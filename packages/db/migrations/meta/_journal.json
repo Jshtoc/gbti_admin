@@ -43,6 +43,13 @@
       "when": 1791285758093,
       "tag": "0005_stats_excluded_members",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791286913175,
+      "tag": "0006_stats_exclusion_scope",
+      "breakpoints": true
     }
   ]
 }

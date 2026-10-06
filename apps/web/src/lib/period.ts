@@ -6,11 +6,19 @@ import { RETENTION_DAYS } from '@gbti/db/retention';
 import { DAY_MS, kstDayKey } from './time';
 
 // 조회 기간 = KST 날짜 [from, to] (양 끝 포함). URL에는 ?from=YYYY-MM-DD&to=YYYY-MM-DD 로 둔다.
+// 시간대 필터: ?time=night 이면 매일 20:00 ~ 다음날 03:00 (KST)만 집계한다.
 
 export interface Period {
   from: string;
   to: string;
+  /** true 면 매일 NIGHT_START_HOUR ~ 다음날 NIGHT_END_HOUR 시만 집계 */
+  night?: boolean;
 }
+
+export const NIGHT_START_HOUR = 20;
+/** 다음날 기준 */
+export const NIGHT_END_HOUR = 3;
+export const NIGHT_LABEL = `${NIGHT_START_HOUR}~${String(NIGHT_END_HOUR).padStart(2, '0')}시`;
 
 export const PERIOD_PRESETS = [
   { key: '1d', days: 1, label: '1일' },
@@ -55,6 +63,11 @@ function firstValue(value: unknown): unknown {
 
 /** searchParams의 from/to를 검증한다. 잘못되면 최근 7일. 미래 날짜는 오늘로 자르고 순서가 뒤집히면 바꾼다. */
 export function parsePeriod(params: Record<string, unknown>, now = new Date()): Period {
+  const dates = parsePeriodDates(params, now);
+  return firstValue(params.time) === 'night' ? { ...dates, night: true } : dates;
+}
+
+function parsePeriodDates(params: Record<string, unknown>, now: Date): Period {
   const from = dateSchema.safeParse(firstValue(params.from));
   const to = dateSchema.safeParse(firstValue(params.to));
   if (!from.success || !to.success || Number.isNaN(kstDateStart(from.data).getTime())) {
@@ -78,8 +91,29 @@ export function parsePeriod(params: Record<string, unknown>, now = new Date()): 
 
 /** 집계용 구간 [from 자정, to 다음날 자정) — 단 오늘이 끝이면 현재 시각까지 */
 export function toDateRange(period: Period, now = new Date()): DateRange {
+  if (period.night) return nightDateRange(period, now);
   const end = new Date(kstDateStart(period.to).getTime() + DAY_MS);
   return { from: kstDateStart(period.from), to: end > now ? now : end };
+}
+
+/**
+ * 매일 20:00 ~ 다음날 03:00 구간들. 기간의 마지막 날 밤이 자정을 넘어도 그 밤 전체를 포함하고,
+ * 아직 오지 않은 시각은 잘라낸다.
+ */
+function nightDateRange(period: Period, now: Date): DateRange {
+  const windows: { from: Date; to: Date }[] = [];
+  for (let day = period.from; day <= period.to; day = addDays(day, 1)) {
+    const start = kstDateStart(day).getTime();
+    const from = new Date(start + NIGHT_START_HOUR * 60 * 60 * 1000);
+    const end = new Date(start + (24 + NIGHT_END_HOUR) * 60 * 60 * 1000);
+    if (from >= now) break;
+    windows.push({ from, to: end > now ? now : end });
+  }
+  const first = windows[0];
+  const last = windows.at(-1);
+  // 구간이 하나도 없으면(오늘 밤이 아직 안 옴) 길이 0 범위
+  const empty = new Date(kstDateStart(period.from).getTime() + NIGHT_START_HOUR * 60 * 60 * 1000);
+  return { from: first?.from ?? empty, to: last?.to ?? empty, windows };
 }
 
 export function periodDays(period: Period): number {
@@ -110,6 +144,7 @@ export function periodLabel(period: Period): string {
 /** KPI 캡션 등에 쓰는 짧은 기간 표현: "7일간" / "오늘" */
 export function periodSpanLabel(period: Period, now = new Date()): string {
   const days = periodDays(period);
-  if (days === 1 && period.to === kstDayKey(now)) return '오늘';
-  return `${days}일간`;
+  const span = days === 1 && period.to === kstDayKey(now) ? '오늘' : `${days}일간`;
+  return period.night ? `${span} · ${NIGHT_LABEL}` : span;
 }
+

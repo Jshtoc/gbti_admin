@@ -172,6 +172,8 @@ export const statsExcludedMembers = pgTable(
   {
     guildId: text('guild_id').notNull(),
     userId: text('user_id').notNull(),
+    /** all = 모든 통계에서 제외, duo = 듀오(같이 플레이) 순위에서만 제외 */
+    scope: text('scope', { enum: ['all', 'duo'] }).notNull().default('all'),
     /** 추가할 때의 닉네임 등 메모 */
     note: text('note'),
     createdAt: tstz('created_at').notNull().defaultNow(),

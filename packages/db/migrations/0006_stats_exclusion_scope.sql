@@ -1,0 +1,1 @@
+ALTER TABLE "stats_excluded_members" ADD COLUMN "scope" text DEFAULT 'all' NOT NULL;

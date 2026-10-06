@@ -19,13 +19,15 @@ const TZ = 'Asia/Seoul';
 /**
  * 통계에서 빼는 멤버가 아닌 조건. alias = members 테이블 별칭
  * - 닉네임에 [게스트]·[부계정] 태그가 있는 멤버
- * - stats_excluded_members 에 지정된 계정
+ * - stats_excluded_members 에 지정된 계정 (scope = all, duo 면 듀오 집계에서만 제외)
  */
-function notExcludedMember(alias: string): SQL {
+function notExcludedMember(alias: string, { duo = false } = {}): SQL {
   const m = sql.raw(alias);
   const byTag = EXCLUDED_NAME_TAGS.map((tag) => sql`position(${tag} in ${m}.display_name) = 0`);
+  const scopes = duo ? sql`('all', 'duo')` : sql`('all')`;
   const byAccount = sql`not exists (
-    select 1 from stats_excluded_members x where x.guild_id = ${m}.guild_id and x.user_id = ${m}.user_id
+    select 1 from stats_excluded_members x
+    where x.guild_id = ${m}.guild_id and x.user_id = ${m}.user_id and x.scope in ${scopes}
   )`;
   return sql.join([...byTag, byAccount], sql` and `);
 }
@@ -36,11 +38,33 @@ const iso = (date: Date) => date.toISOString();
 /** 진행 중인 구간(ended_at null)은 현재 시각까지로 본다. */
 const endOf = (alias: string) => sql.raw(`coalesce(${alias}.ended_at, now())`);
 
-/** 구간 [alias.started_at, alias.ended_at)을 range로 잘라낸 길이(초). 겹치지 않으면 0. */
+/** 집계 대상 구간들. windows 가 없으면 기간 전체가 구간 하나 */
+const windowsOf = (range: DateRange) => range.windows ?? [range];
+
+/**
+ * 구간 [start, end) 가 집계 구간들과 겹치는 길이(초)의 합. 겹치지 않으면 0.
+ * (시간대 필터가 없으면 구간 하나라 기존과 같은 결과)
+ */
+function windowedSeconds(start: SQL, end: SQL, range: DateRange): SQL {
+  const parts = windowsOf(range).map(
+    (w) => sql`greatest(0, extract(epoch from
+      least(${end}, ${iso(w.to)}::timestamptz) - greatest(${start}, ${iso(w.from)}::timestamptz)))`,
+  );
+  return parts.length > 0 ? sql`(${sql.join(parts, sql` + `)})` : sql`0`;
+}
+
+/** 구간 [alias.started_at, alias.ended_at) 의 집계 대상 길이(초) */
 function clippedSeconds(alias: string, range: DateRange): SQL {
-  return sql`greatest(0, extract(epoch from
-    least(${endOf(alias)}, ${iso(range.to)}::timestamptz)
-    - greatest(${sql.raw(alias)}.started_at, ${iso(range.from)}::timestamptz)))`;
+  return windowedSeconds(sql`${sql.raw(alias)}.started_at`, endOf(alias), range);
+}
+
+/** 두 세션 a, b 가 함께 있던 시간(교집합)의 집계 대상 길이(초) */
+function sharedSeconds(a: string, b: string, range: DateRange): SQL {
+  return windowedSeconds(
+    sql`greatest(${sql.raw(a)}.started_at, ${sql.raw(b)}.started_at)`,
+    sql`least(${endOf(a)}, ${endOf(b)})`,
+    range,
+  );
 }
 
 /** alias 구간이 range와 겹치는 조건 */
@@ -131,9 +155,7 @@ export async function getCoPlayPairs(
   }>(sql`
     with pairs as (
       select a.user_id as a_id, b.user_id as b_id,
-        sum(greatest(0, extract(epoch from
-          least(${endOf('a')}, ${endOf('b')}, ${iso(range.to)}::timestamptz)
-          - greatest(a.started_at, b.started_at, ${iso(range.from)}::timestamptz)))) as seconds
+        sum(${sharedSeconds('a', 'b', range)}) as seconds
       from voice_sessions a
       join voice_sessions b
         on b.guild_id = a.guild_id
@@ -150,8 +172,8 @@ export async function getCoPlayPairs(
       p.b_id, mb.display_name as b_name, mb.avatar_url as b_avatar,
       p.seconds::float8 as seconds
     from pairs p
-    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id and ${notExcludedMember('ma')}
-    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id and ${notExcludedMember('mb')}
+    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id and ${notExcludedMember('ma', { duo: true })}
+    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id and ${notExcludedMember('mb', { duo: true })}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -179,9 +201,7 @@ export async function getPartners(
   }>(sql`
     with partners as (
       select b.user_id as partner_id,
-        sum(greatest(0, extract(epoch from
-          least(${endOf('a')}, ${endOf('b')}, ${iso(range.to)}::timestamptz)
-          - greatest(a.started_at, b.started_at, ${iso(range.from)}::timestamptz)))) as seconds
+        sum(${sharedSeconds('a', 'b', range)}) as seconds
       from voice_sessions a
       join voice_sessions b
         on b.guild_id = a.guild_id
@@ -197,7 +217,8 @@ export async function getPartners(
     )
     select p.partner_id, m.display_name, m.avatar_url, p.seconds::float8 as seconds
     from partners p
-    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id and ${notExcludedMember('m')}
+    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id and ${notExcludedMember('m', { duo: true })}
+    join members me on me.guild_id = ${guildId} and me.user_id = ${userId} and ${notExcludedMember('me', { duo: true })}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -209,23 +230,36 @@ export async function getPartners(
   }));
 }
 
-/** 일별 음성 체류 시간 합계 (Asia/Seoul 자정 기준으로 구간을 쪼갠다). userId를 주면 해당 멤버만. */
+/**
+ * 일별 음성 체류 시간 합계. 기본은 Asia/Seoul 자정 기준 하루,
+ * 시간대 필터(range.windows)가 있으면 구간 하나를 하루로 본다. userId를 주면 해당 멤버만.
+ */
 export async function getDailyVoice(
   guildId: string,
   range: DateRange,
   userId?: string,
 ): Promise<DailyVoice[]> {
   const userFilter = userId ? sql`and v.user_id = ${userId}` : sql``;
-  const rows = await getDb().execute<{ day: string; seconds: number }>(sql`
-    with days as (
-      select gs::date as day,
+  const days = range.windows
+    ? range.windows.length > 0
+      ? sql`select * from (values ${sql.join(
+          range.windows.map(
+            (w) => sql`((${iso(w.from)}::timestamptz at time zone ${TZ})::date, ${iso(w.from)}::timestamptz, ${iso(w.to)}::timestamptz)`,
+          ),
+          sql`, `,
+        )}) as w(day, ds, de)`
+      : sql`select null::date as day, null::timestamptz as ds, null::timestamptz as de where false`
+    : sql`select gs::date as day,
         (gs::date::timestamp at time zone ${TZ}) as ds,
         ((gs::date + 1)::timestamp at time zone ${TZ}) as de
       from generate_series(
         (${iso(range.from)}::timestamptz at time zone ${TZ})::date,
         ((${iso(range.to)}::timestamptz - interval '1 microsecond') at time zone ${TZ})::date,
         interval '1 day'
-      ) gs
+      ) gs`;
+  const rows = await getDb().execute<{ day: string; seconds: number }>(sql`
+    with days as (
+      ${days}
     )
     select to_char(d.day, 'YYYY-MM-DD') as day,
       coalesce(sum(greatest(0, extract(epoch from
@@ -303,9 +337,7 @@ export async function getRoomCategoryTimes(
   const userFilter = userId ? sql`and v.user_id = ${userId}` : sql``;
   const rows = await getDb().execute<{ kind: RoomCategoryTime['kind']; label: string; seconds: number }>(sql`
     select r.category_kind as kind, r.category_label as label,
-      sum(greatest(0, extract(epoch from
-        least(${endOf('v')}, ${endOf('r')}, ${iso(range.to)}::timestamptz)
-        - greatest(v.started_at, r.started_at, ${iso(range.from)}::timestamptz))))::float8 as seconds
+      sum(${sharedSeconds('v', 'r', range)})::float8 as seconds
     from voice_sessions v
     join members m on m.guild_id = v.guild_id and m.user_id = v.user_id and ${notExcludedMember('m')}
     join voice_room_states r
@@ -318,9 +350,7 @@ export async function getRoomCategoryTimes(
       and ${overlapsRange('r', range)}
       ${userFilter}
     group by r.category_kind, r.category_label
-    having sum(greatest(0, extract(epoch from
-        least(${endOf('v')}, ${endOf('r')}, ${iso(range.to)}::timestamptz)
-        - greatest(v.started_at, r.started_at, ${iso(range.from)}::timestamptz)))) > 0
+    having sum(${sharedSeconds('v', 'r', range)}) > 0
     order by seconds desc, label
   `);
 

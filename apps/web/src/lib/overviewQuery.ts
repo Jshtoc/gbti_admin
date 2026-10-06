@@ -18,14 +18,17 @@ export function withParams(path: string, params: Record<string, string | undefin
 
 /** 기간만 유지한 쿼리 (멤버 상세 등 다른 페이지로 넘어갈 때) */
 export function periodHref(path: string, period: Period, hash?: string): string {
-  return withParams(path, { from: period.from, to: period.to }, hash);
+  return withParams(path, { from: period.from, to: period.to, time: timeParam(period) }, hash);
 }
+
+/** 시간대 필터 쿼리 값 (전체 시간이면 생략) */
+export const timeParam = (period: Period) => (period.night ? 'night' : undefined);
 
 /** 개요 페이지 URL. 필터끼리 서로의 값을 잃지 않도록 한 곳에서 만든다. 기본값은 생략. */
 export function overviewHref({ period, sort, member }: OverviewQuery, hash?: string): string {
   return withParams(
     '/',
-    { from: period.from, to: period.to, sort: sort && sort !== 'voice' ? sort : undefined, member },
+    { from: period.from, to: period.to, time: timeParam(period), sort: sort && sort !== 'voice' ? sort : undefined, member },
     hash,
   );
 }

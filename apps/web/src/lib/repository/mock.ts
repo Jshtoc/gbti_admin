@@ -371,6 +371,14 @@ export function createMockRepository(): DashboardRepository {
       const sessions = voiceInRange(range, now).filter((v) => !userId || v.userId === userId);
       const days: DailyVoice[] = [];
 
+      // 시간대 필터가 있으면 구간 하나 = 하루 (시작 시각의 KST 날짜) — SQL과 같은 규칙
+      if (range.windows) {
+        return range.windows.map((w): DailyVoice => ({
+          day: kstDayKey(w.from),
+          seconds: sessions.reduce((sum, v) => sum + clippedSeconds(v.startedAt, endOf(v, now), w), 0),
+        }));
+      }
+
       for (let dayStart = kstMidnight(range.from).getTime(); dayStart < range.to.getTime(); dayStart += DAY_MS) {
         const day: DateRange = { from: new Date(dayStart), to: new Date(dayStart + DAY_MS) };
         const seconds = sessions.reduce((sum, v) => sum + clippedSeconds(v.startedAt, endOf(v, now), day), 0);

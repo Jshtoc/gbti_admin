@@ -21,6 +21,7 @@
 - **보관 기간 30일** (`packages/db/src/retention.ts`의 `RETENTION_DAYS`). 봇이 하루 한 번(시작 직후 첫 하트비트 포함) 끝난 지 30일 지난 구간을 지운다(`tracker.purgeOlderThan`). 진행 중이거나 기간에 걸친 구간은 남긴다.
 - **통계 제외 멤버**: 닉네임에 `[게스트]`·`[부계정]`이 들어간 멤버(`packages/db/src/memberFilter.ts`). 봇은 기록하되 대시보드의 모든 집계·목록·검색에서 뺀다(SQL은 `notExcludedMember`, 목데이터는 `isExcludedFromStats`). 방 종류 판정에는 포함된다. 특정 계정을 빼려면 `stats_excluded_members` 테이블(DB에만, 공개 저장소에 계정 ID를 남기지 않음)에 guild_id/user_id를 넣는다 — 계정 기준이라 닉네임이 바뀌어도 유지되고 같은 이름의 새 멤버는 영향 없음. `scope` 컬럼: `all`(기본, 모든 통계에서 제외) / `duo`(BEST DUO·파트너·최장/최다 듀오에서만 제외, 멤버 표 등은 유지 — `notExcludedMember(alias, { duo: true })`).
 - 조회 기간은 URL `?from=YYYY-MM-DD&to=YYYY-MM-DD` (KST, 양 끝 포함, 최대 `RETENTION_DAYS`일 — 그보다 오래된 날은 보관 시작일로 당긴다). 파싱/프리셋은 `apps/web/src/lib/period.ts`. `?time=night`이면 매일 KST 20:00~다음날 03:00만 집계(`DateRange.windows`, SQL은 `windowedSeconds`, 일별 그래프는 밤 시작 날짜 기준). 기록은 24시간 그대로.
+- "접속이 가장 적은 멤버"는 **음성 시간 적은 순**(같으면 온라인 시간 → 마지막 접속 오래된 순). 20~03시 필터면 그 시간대 음성 시간 기준(`leastActive`).
 - 일 단위 집계는 Asia/Seoul 자정 기준.
 - 목데이터 집계(`mock.ts`)와 SQL(`queries.ts`)은 같은 규칙을 따라야 한다. 한쪽을 바꾸면 다른 쪽도 맞춘다.
 - DB는 Supabase. 봇·마이그레이션은 **Session pooler(:5432)**, Vercel 대시보드는 **Transaction pooler(:6543)** 주소를 쓴다(둘 다 `?sslmode=require`). 6543이면 `client.ts`가 prepared statement를 자동으로 끈다.

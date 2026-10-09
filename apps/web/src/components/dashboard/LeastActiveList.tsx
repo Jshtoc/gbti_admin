@@ -59,7 +59,7 @@ export function LeastActiveList({ members, period, pageSize }: LeastActiveListPr
                   </span>
                   <span className={styles.title}>{m.displayName}</span>
                   <span className={styles.meta}>
-                    온라인 {formatDuration(m.onlineSeconds)} · 음성 {formatDuration(m.voiceSeconds)}
+                    음성 {formatDuration(m.voiceSeconds)} · 온라인 {formatDuration(m.onlineSeconds)}
                   </span>
                 </span>
                 <span className={styles.arrow}>

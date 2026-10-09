@@ -11,7 +11,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { formatDuration, toHours } from '@/lib/format';
 import { leastActive, sortMembers, type MemberSortKey } from '@/lib/memberSort';
 import { overviewHref, periodHref, type OverviewQuery } from '@/lib/overviewQuery';
-import { periodLabel, periodSpanLabel, toDateRange, type Period } from '@/lib/period';
+import { NIGHT_LABEL, periodLabel, periodSpanLabel, toDateRange, type Period } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
 
 import styles from '@/app/dashboard.module.css';
@@ -53,7 +53,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   // 멤버 선택 여부에 따라 배치가 달라지는 섹션
   const leastActiveSection = (count: number) => (
     <section className={styles.section} aria-labelledby="least-active">
-      <SectionHeader eyebrow="Least active" title="접속이 가장 적은 멤버" id="least-active" aside={`온라인 시간 적은 순 · 전체 ${members.length}명`} />
+      <SectionHeader eyebrow="Least active" title="접속이 가장 적은 멤버" id="least-active" aside={`${period.night ? `${NIGHT_LABEL} ` : ''}음성 시간 적은 순 · 전체 ${members.length}명`} />
       <LeastActiveList members={leastActive(members, members.length)} period={period} pageSize={count} />
     </section>
   );

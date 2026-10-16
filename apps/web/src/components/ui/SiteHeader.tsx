@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { logout } from '@/app/login/actions';
 
 import styles from './SiteHeader.module.css';
+import { TabNav } from './TabNav';
 
 interface SiteHeaderProps {
   dataSource: 'db' | 'mock';
@@ -30,6 +31,7 @@ export function SiteHeader({ dataSource, loggedIn }: SiteHeaderProps) {
           )}
         </div>
       </div>
+      {loggedIn && <TabNav />}
     </header>
   );
 }

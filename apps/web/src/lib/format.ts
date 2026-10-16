@@ -37,6 +37,12 @@ export function formatLastSeen(date: Date | null, now = new Date()): string {
   return `${Math.floor(diffH / 24)}일 전`;
 }
 
+/** 마지막 퇴장 → "방금 나감", "3시간 전", "12일 전". 지금 음성 중이면 호출하지 않는다 */
+export function formatLeftAgo(date: Date, now = new Date()): string {
+  const diffMin = Math.floor((now.getTime() - date.getTime()) / 60000);
+  return diffMin < 5 ? '방금 나감' : formatLastSeen(date, now);
+}
+
 const dateTimeFormat = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul',
   month: 'numeric',

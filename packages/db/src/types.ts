@@ -30,6 +30,17 @@ export interface MemberActivity extends MemberRef {
   lastSeenAt: Date | null;
 }
 
+/** 멤버별 마지막 음성방 퇴장 */
+export interface MemberLastVoice extends MemberRef {
+  username: string;
+  /** 마지막으로 음성방을 나간 시각. 지금 음성방에 있으면 null이 아니라 inVoice=true. 보관 기간 안 기록이 없으면 null */
+  lastLeftAt: Date | null;
+  /** 지금 음성방에 있는 중 */
+  inVoice: boolean;
+  /** 마지막으로 있던 방제목 */
+  lastChannelName: string | null;
+}
+
 export interface CoPlayPair {
   a: MemberRef;
   b: MemberRef;

@@ -6,6 +6,7 @@ import type {
   DateRange,
   GameTime,
   MemberActivity,
+  MemberLastVoice,
   MemberRef,
   PartnerTime,
   VoiceSessionGroup,
@@ -317,6 +318,27 @@ export function createMockRepository(): DashboardRepository {
           onlineSeconds: online.get(m.userId) ?? 0,
           topGame,
           lastSeenAt: data.lastSeen.get(m.userId) ?? null,
+        };
+      });
+    },
+
+    async getLastVoiceExits() {
+      const now = new Date();
+      // SQL과 같은 규칙: 진행 중인 세션이 있으면 그것, 아니면 가장 늦게 끝난 세션
+      const latest = new Map<string, VoiceInterval>();
+      for (const v of countedVoice) {
+        const cur = latest.get(v.userId);
+        const better = !cur || (cur.endedAt !== null && (v.endedAt === null || v.endedAt > cur.endedAt));
+        if (better) latest.set(v.userId, v);
+      }
+      return COUNTED.map((m): MemberLastVoice => {
+        const v = latest.get(m.userId);
+        return {
+          ...toRef(m),
+          username: m.username,
+          lastLeftAt: v ? (v.endedAt ?? null) : null,
+          inVoice: !!v && v.endedAt === null && v.startedAt <= now,
+          lastChannelName: v?.channelName ?? null,
         };
       });
     },

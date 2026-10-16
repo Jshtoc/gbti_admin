@@ -9,6 +9,7 @@ import type {
   DateRange,
   GameTime,
   MemberActivity,
+  MemberLastVoice,
   MemberListItem,
   PartnerTime,
   VoiceSessionGroup,
@@ -340,6 +341,46 @@ export async function getVoiceSessionGroups(
     seconds: r.seconds,
     lastStartedAt: new Date(r.last_ms),
     live: r.live,
+  }));
+}
+
+/**
+ * 멤버별 마지막 음성방 퇴장 시각 (보관 기간 안 기록 기준). 음성방생성 같은 대기 채널은 제외.
+ * 진행 중인 세션이 있으면 inVoice = true.
+ */
+export async function getLastVoiceExits(guildId: string): Promise<MemberLastVoice[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    left_ms: number | null;
+    in_voice: boolean | null;
+    channel_name: string | null;
+  }>(sql`
+    select m.user_id, m.username, m.display_name, m.avatar_url,
+      (extract(epoch from last.ended_at) * 1000)::float8 as left_ms,
+      (last.id is not null and last.ended_at is null) as in_voice,
+      last.channel_name
+    from members m
+    left join lateral (
+      select v.id, v.ended_at, v.channel_name
+      from voice_sessions v
+      where v.guild_id = m.guild_id and v.user_id = m.user_id and ${notExcludedChannel('v')}
+      order by v.ended_at desc nulls first, v.started_at desc
+      limit 1
+    ) last on true
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+  `);
+
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    lastLeftAt: r.left_ms === null ? null : new Date(r.left_ms),
+    inVoice: r.in_voice === true,
+    lastChannelName: r.channel_name,
   }));
 }
 

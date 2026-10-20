@@ -1,6 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 
 import { getDb } from './client';
+import { FIRST_JOIN_DAY_START_HOUR, FIRST_JOIN_DAYS } from './firstJoin';
 import { EXCLUDED_NAME_TAGS } from './memberFilter';
 import { EXCLUDED_VOICE_CHANNEL_KEYWORDS } from './roomCategory';
 import type {
@@ -9,6 +10,7 @@ import type {
   DateRange,
   GameTime,
   MemberActivity,
+  MemberAvgJoin,
   MemberLastVoice,
   MemberListItem,
   PartnerTime,
@@ -381,6 +383,51 @@ export async function getLastVoiceExits(guildId: string): Promise<MemberLastVoic
     lastLeftAt: r.left_ms === null ? null : new Date(r.left_ms),
     inVoice: r.in_voice === true,
     lastChannelName: r.channel_name,
+  }));
+}
+
+/**
+ * 멤버별 최근 FIRST_JOIN_DAYS일 평균 첫 음성방 입장 시각. 하루는 KST 06:00 기준(firstJoin.ts),
+ * 그날 가장 먼저 시작한 세션의 시작 시각을 평균낸다. 음성방생성 같은 대기 채널은 제외.
+ */
+export async function getAverageFirstJoins(guildId: string): Promise<MemberAvgJoin[]> {
+  const shift = `${FIRST_JOIN_DAY_START_HOUR} hours`;
+  const span = `${FIRST_JOIN_DAYS - 1} days`;
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    avg_offset: number | null;
+    days: number;
+  }>(sql`
+    select m.user_id, m.username, m.display_name, m.avatar_url,
+      f.avg_offset::float8 as avg_offset, coalesce(f.days, 0)::int as days
+    from members m
+    left join lateral (
+      select avg(d.first_offset) as avg_offset, count(*) as days
+      from (
+        select min(extract(epoch from s.shifted - date_trunc('day', s.shifted))) as first_offset
+        from (
+          select (v.started_at at time zone ${TZ}) - ${shift}::interval as shifted
+          from voice_sessions v
+          where v.guild_id = m.guild_id and v.user_id = m.user_id and ${notExcludedChannel('v')}
+        ) s
+        where s.shifted >= date_trunc('day', (now() at time zone ${TZ}) - ${shift}::interval) - ${span}::interval
+        group by date_trunc('day', s.shifted)
+      ) d
+    ) f on true
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+  `);
+
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    // 06:00 기준 오프셋 → KST 하루 중 시각
+    avgSecondOfDay: r.avg_offset === null ? null : Math.round(r.avg_offset + FIRST_JOIN_DAY_START_HOUR * 3600) % 86400,
+    days: r.days,
   }));
 }
 

@@ -8,7 +8,8 @@
     "./schema": "./src/schema.ts",
     "./roomCategory": "./src/roomCategory.ts",
     "./memberFilter": "./src/memberFilter.ts",
-    "./retention": "./src/retention.ts"
+    "./retention": "./src/retention.ts",
+    "./firstJoin": "./src/firstJoin.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate",

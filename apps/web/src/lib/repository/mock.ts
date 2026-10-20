@@ -6,11 +6,13 @@ import type {
   DateRange,
   GameTime,
   MemberActivity,
+  MemberAvgJoin,
   MemberLastVoice,
   MemberRef,
   PartnerTime,
   VoiceSessionGroup,
 } from '@gbti/db';
+import { FIRST_JOIN_DAY_START_HOUR, FIRST_JOIN_DAYS } from '@gbti/db/firstJoin';
 import { isExcludedFromStats } from '@gbti/db/memberFilter';
 import { RETENTION_DAYS } from '@gbti/db/retention';
 import { classifyRoom, isExcludedVoiceChannel, type RoomCategoryKind } from '@gbti/db/roomCategory';
@@ -339,6 +341,34 @@ export function createMockRepository(): DashboardRepository {
           lastLeftAt: v ? (v.endedAt ?? null) : null,
           inVoice: !!v && v.endedAt === null && v.startedAt <= now,
           lastChannelName: v?.channelName ?? null,
+        };
+      });
+    },
+
+    async getAverageFirstJoins() {
+      const now = new Date();
+      const KST = 9 * HOUR;
+      const shiftMs = FIRST_JOIN_DAY_START_HOUR * HOUR;
+      // SQL과 같은 규칙: 하루는 KST 06:00 기준, 그날 첫 세션 시작 시각의 평균 (최근 FIRST_JOIN_DAYS일)
+      const dayOf = (d: Date) => Math.floor((d.getTime() + KST - shiftMs) / DAY_MS);
+      const oldestDay = dayOf(now) - (FIRST_JOIN_DAYS - 1);
+      const firstByDay = new Map<string, Map<number, number>>();
+      for (const v of countedVoice) {
+        const day = dayOf(v.startedAt);
+        if (day < oldestDay || v.startedAt > now) continue;
+        const offset = v.startedAt.getTime() + KST - shiftMs - day * DAY_MS;
+        const days = firstByDay.get(v.userId) ?? new Map<number, number>();
+        days.set(day, Math.min(days.get(day) ?? Infinity, offset));
+        firstByDay.set(v.userId, days);
+      }
+      return COUNTED.map((m): MemberAvgJoin => {
+        const offsets = [...(firstByDay.get(m.userId)?.values() ?? [])];
+        const avg = offsets.length ? offsets.reduce((a, b) => a + b, 0) / offsets.length / 1000 : null;
+        return {
+          ...toRef(m),
+          username: m.username,
+          avgSecondOfDay: avg === null ? null : Math.round(avg + FIRST_JOIN_DAY_START_HOUR * 3600) % 86400,
+          days: offsets.length,
         };
       });
     },

@@ -55,3 +55,12 @@ const dateTimeFormat = new Intl.DateTimeFormat('ko-KR', {
 export function formatDateTime(date: Date): string {
   return dateTimeFormat.format(date);
 }
+
+/** KST 하루 중 초 → "오후 9:30" / "새벽 1:05" */
+export function formatTimeOfDay(secondOfDay: number): string {
+  const totalMin = Math.round(secondOfDay / 60) % 1440;
+  const h = Math.floor(totalMin / 60);
+  const m = String(totalMin % 60).padStart(2, '0');
+  const period = h < 6 ? '새벽' : h < 12 ? '오전' : h < 18 ? '오후' : '밤';
+  return `${period} ${h % 12 === 0 ? 12 : h % 12}:${m}`;
+}

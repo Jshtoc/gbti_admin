@@ -41,6 +41,15 @@ export interface MemberLastVoice extends MemberRef {
   lastChannelName: string | null;
 }
 
+/** 멤버별 최근 N일 평균 첫 음성방 입장 시각 */
+export interface MemberAvgJoin extends MemberRef {
+  username: string;
+  /** 평균 입장 시각 (KST 하루 중 초, 0~86399). 기간 안 음성 기록이 없으면 null */
+  avgSecondOfDay: number | null;
+  /** 평균에 쓰인 일수 (음성방에 들어온 날) */
+  days: number;
+}
+
 export interface CoPlayPair {
   a: MemberRef;
   b: MemberRef;

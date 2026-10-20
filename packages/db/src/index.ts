@@ -3,4 +3,5 @@ export * from './queries';
 export * from './roomCategory';
 export * from './memberFilter';
 export * from './retention';
+export * from './firstJoin';
 export type * from './types';

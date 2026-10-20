@@ -4,6 +4,7 @@ import type {
   DateRange,
   GameTime,
   MemberActivity,
+  MemberAvgJoin,
   MemberLastVoice,
   MemberListItem,
   PartnerTime,
@@ -17,6 +18,8 @@ export interface DashboardRepository {
   getMemberActivity(range: DateRange): Promise<MemberActivity[]>;
   /** 멤버별 마지막 음성방 퇴장 시각 (보관 기간 안 기록 기준) */
   getLastVoiceExits(): Promise<MemberLastVoice[]>;
+  /** 멤버별 최근 FIRST_JOIN_DAYS일 평균 첫 음성방 입장 시각 */
+  getAverageFirstJoins(): Promise<MemberAvgJoin[]>;
   getCoPlayPairs(range: DateRange, limit?: number): Promise<CoPlayPair[]>;
   getPartners(userId: string, range: DateRange, limit?: number): Promise<PartnerTime[]>;
   getDailyVoice(range: DateRange, userId?: string): Promise<DailyVoice[]>;

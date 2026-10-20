@@ -51,7 +51,7 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
       />
 
       <Suspense key={`${period.from}|${period.to}|${period.night ? 'n' : 'a'}`} fallback={<MemberSkeleton />}>
-        <MemberContent userId={userId} displayName={member.displayName} period={period} />
+        <MemberContent userId={userId} period={period} />
       </Suspense>
     </div>
   );

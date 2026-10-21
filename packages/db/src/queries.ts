@@ -165,7 +165,7 @@ export async function getCoPlayPairs(
     b_avatar: string | null;
     seconds: number;
   }>(sql`
-    with pairs as (
+    with pairs as materialized (
       select a.user_id as a_id, b.user_id as b_id,
         sum(${sharedSeconds('a', 'b', range)}) as seconds
       from voice_sessions a
@@ -211,7 +211,7 @@ export async function getPartners(
     avatar_url: string | null;
     seconds: number;
   }>(sql`
-    with partners as (
+    with partners as materialized (
       select b.user_id as partner_id,
         sum(${sharedSeconds('a', 'b', range)}) as seconds
       from voice_sessions a

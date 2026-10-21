@@ -31,7 +31,7 @@ export default async function LastSeenPage() {
       <PageHero
         eyebrow="Last voice exit"
         title="마지막 접속 기록"
-        description="멤버별로 마지막에 음성방을 나간 시간 · 최근 30일 기록 기준"
+        description="멤버별로 마지막에 음성방을 나간 시간 · 최근 10일 기록 기준"
       />
       <section className={styles.section}>
         <LastSeenList rows={rows} nowMs={Date.now()} />

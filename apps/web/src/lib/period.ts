@@ -23,14 +23,13 @@ export const NIGHT_LABEL = `${NIGHT_START_HOUR}~${String(NIGHT_END_HOUR).padStar
 export const PERIOD_PRESETS = [
   { key: '1d', days: 1, label: '1일' },
   { key: '3d', days: 3, label: '3일' },
-  { key: '7d', days: 7, label: '7일' },
-  { key: '30d', days: 30, label: '30일' },
+  { key: '10d', days: 10, label: '10일' },
 ] as const;
 
 export type PresetKey = (typeof PERIOD_PRESETS)[number]['key'];
 
-const DEFAULT_PRESET_DAYS = 7;
-/** 기록 보관 기간(30일)보다 오래 전은 지워져 있으므로 그 안에서만 고른다 */
+const DEFAULT_PRESET_DAYS = 10;
+/** 기록 보관 기간(10일)보다 오래 전은 지워져 있으므로 그 안에서만 고른다 */
 export const MAX_PERIOD_DAYS = RETENTION_DAYS;
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -61,7 +60,7 @@ function firstValue(value: unknown): unknown {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** searchParams의 from/to를 검증한다. 잘못되면 최근 7일. 미래 날짜는 오늘로 자르고 순서가 뒤집히면 바꾼다. */
+/** searchParams의 from/to를 검증한다. 잘못되면 최근 10일. 미래 날짜는 오늘로 자르고 순서가 뒤집히면 바꾼다. */
 export function parsePeriod(params: Record<string, unknown>, now = new Date()): Period {
   const dates = parsePeriodDates(params, now);
   return firstValue(params.time) === 'night' ? { ...dates, night: true } : dates;

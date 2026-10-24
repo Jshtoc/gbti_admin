@@ -58,6 +58,27 @@ export const voiceSessions = pgTable(
 );
 
 /**
+ * 마이크를 끈 구간 (본인 음소거·헤드셋 소리 끔·관리자 음소거 모두). 음성 채널에 있는 동안만 생기고,
+ * 음성방을 나가면 닫는다. "잠수 시간" = 이 구간과 voice_sessions 의 겹침.
+ */
+export const voiceMuteSessions = pgTable(
+  'voice_mute_sessions',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    guildId: text('guild_id').notNull(),
+    userId: text('user_id').notNull(),
+    startedAt: tstz('started_at').notNull(),
+    endedAt: tstz('ended_at'),
+  },
+  (t) => [
+    index('voice_mute_sessions_user_started_idx').on(t.guildId, t.userId, t.startedAt),
+    uniqueIndex('voice_mute_sessions_one_open_per_user')
+      .on(t.guildId, t.userId)
+      .where(sql`${t.endedAt} is null`),
+  ],
+);
+
+/**
  * 방(음성 채널) 종류 구간. 판정 규칙은 roomCategory.ts의 classifyRoom.
  * 방 인원이나 방 안 멤버의 게임 상태가 바뀌어 판정 결과가 달라지면 구간을 닫고 새로 연다.
  * 방이 비면 구간을 닫는다.

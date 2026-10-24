@@ -9,6 +9,7 @@ import {
   members,
   messageCountsDaily,
   presenceSessions,
+  voiceMuteSessions,
   voiceRoomStates,
   voiceSessions,
 } from '@gbti/db/schema';
@@ -45,8 +46,8 @@ export interface RoomOccupant {
 export interface GuildSnapshot {
   members: MemberInfo[];
   channels: ChannelInfo[];
-  /** 지금 음성 채널에 있는 멤버 */
-  voice: { userId: string; channelId: string; channelName: string }[];
+  /** 지금 음성 채널에 있는 멤버 (muted = 마이크 끔·소리 끔·관리자 음소거 중 하나라도) */
+  voice: { userId: string; channelId: string; channelName: string; muted: boolean }[];
   presences: { userId: string; status: PresenceStatus; games: string[] }[];
   /** 사람이 있는 음성 채널 */
   rooms: { channelId: string; channelName: string; occupants: RoomOccupant[] }[];
@@ -58,7 +59,12 @@ function roomCategoryOf(channelName: string, occupants: RoomOccupant[]) {
   return classifyRoom(channelName, games);
 }
 
-type IntervalTable =typeof voiceSessions | typeof presenceSessions | typeof activitySessions | typeof voiceRoomStates;
+type IntervalTable =
+  | typeof voiceSessions
+  | typeof presenceSessions
+  | typeof activitySessions
+  | typeof voiceRoomStates
+  | typeof voiceMuteSessions;
 
 export class Tracker {
   constructor(
@@ -70,7 +76,7 @@ export class Tracker {
 
   /**
    * 열린 구간을 at에 닫는다. 시작보다 이른 시각으로 닫히지 않게 greatest 처리.
-   * 네 테이블 모두 guild_id / started_at / ended_at 컬럼이 같아서 한 타입으로 다룬다.
+   * 모든 테이블이 guild_id / started_at / ended_at 컬럼이 같아서 한 타입으로 다룬다.
    */
   private async closeOpen(table: IntervalTable, where: SQL | undefined, at: Date) {
     const t = table as typeof voiceSessions;
@@ -131,8 +137,31 @@ export class Tracker {
     await this.db.insert(voiceSessions).values({ guildId: this.guildId, userId, channelId, channelName, startedAt: at });
   }
 
+  /** 퇴장: 음성 구간과 마이크 끈 구간을 함께 닫는다 */
   async closeVoice(userId: string, at: Date) {
     await this.closeOpen(voiceSessions, eq(voiceSessions.userId, userId), at);
+    await this.closeOpen(voiceMuteSessions, eq(voiceMuteSessions.userId, userId), at);
+  }
+
+  /**
+   * 마이크 끈 상태와 열린 구간을 맞춘다 (이미 같은 상태면 그대로). 방을 옮기면 openVoice가 구간을 닫으므로 이어서 다시 연다.
+   * muted = 본인 음소거·헤드셋 소리 끔·관리자 음소거 중 하나라도 true
+   */
+  async setMuted(userId: string, muted: boolean, at: Date) {
+    const [open] = await this.db
+      .select({ id: voiceMuteSessions.id })
+      .from(voiceMuteSessions)
+      .where(
+        and(
+          eq(voiceMuteSessions.guildId, this.guildId),
+          eq(voiceMuteSessions.userId, userId),
+          isNull(voiceMuteSessions.endedAt),
+        ),
+      );
+    if (!!open === muted) return;
+
+    if (open) await this.closeOpen(voiceMuteSessions, eq(voiceMuteSessions.userId, userId), at);
+    else await this.db.insert(voiceMuteSessions).values({ guildId: this.guildId, userId, startedAt: at });
   }
 
   // ─── 온라인 상태 / 게임 ─────────────────────────────────
@@ -263,7 +292,7 @@ export class Tracker {
   }
 
   private async closeAllOpen(at: Date) {
-    for (const table of [voiceSessions, presenceSessions, activitySessions, voiceRoomStates] as const) {
+    for (const table of [voiceSessions, voiceMuteSessions, presenceSessions, activitySessions, voiceRoomStates] as const) {
       await this.closeOpen(table, undefined, at);
     }
   }
@@ -291,7 +320,13 @@ export class Tracker {
       await scoped.upsertChannels(snapshot.channels, at);
 
       if (snapshot.voice.length > 0) {
-        await tx.insert(voiceSessions).values(snapshot.voice.map((v) => ({ guildId, ...v, startedAt: at })));
+        await tx
+          .insert(voiceSessions)
+          .values(snapshot.voice.map((v) => ({ guildId, userId: v.userId, channelId: v.channelId, channelName: v.channelName, startedAt: at })));
+        const muted = snapshot.voice.filter((v) => v.muted);
+        if (muted.length > 0) {
+          await tx.insert(voiceMuteSessions).values(muted.map((v) => ({ guildId, userId: v.userId, startedAt: at })));
+        }
       }
       if (online.length > 0) {
         await tx
@@ -338,7 +373,7 @@ export class Tracker {
   async purgeOlderThan(days: number, at: Date): Promise<Record<string, number>> {
     const cutoff = new Date(at.getTime() - days * 24 * 60 * 60 * 1000);
     const deleted: Record<string, number> = {};
-    for (const table of [voiceSessions, presenceSessions, activitySessions, voiceRoomStates] as const) {
+    for (const table of [voiceSessions, voiceMuteSessions, presenceSessions, activitySessions, voiceRoomStates] as const) {
       const t = table as typeof voiceSessions;
       const rows = await this.db
         .delete(t)

@@ -30,6 +30,14 @@ export interface MemberActivity extends MemberRef {
   lastSeenAt: Date | null;
 }
 
+/** 멤버별 음성 시간과 그중 잠수(마이크 끈) 시간 */
+export interface MemberIdle extends MemberRef {
+  username: string;
+  voiceSeconds: number;
+  /** 음성 시간 중 마이크를 끈 시간 (본인 음소거·소리 끔·관리자 음소거). voiceSeconds 이하 */
+  idleSeconds: number;
+}
+
 /** 멤버별 마지막 음성방 퇴장 */
 export interface MemberLastVoice extends MemberRef {
   username: string;

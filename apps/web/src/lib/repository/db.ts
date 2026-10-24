@@ -10,6 +10,7 @@ export function createDbRepository(guildId: string): DashboardRepository {
     getMemberActivity: (range) => queries.getMemberActivity(guildId, range),
     getLastVoiceExits: () => queries.getLastVoiceExits(guildId),
     getAverageFirstJoins: () => queries.getAverageFirstJoins(guildId),
+    getMemberIdle: (range) => queries.getMemberIdle(guildId, range),
     getCoPlayPairs: (range, limit) => queries.getCoPlayPairs(guildId, range, limit),
     getPartners: (userId, range, limit) => queries.getPartners(guildId, userId, range, limit),
     getDailyVoice: (range, userId) => queries.getDailyVoice(guildId, range, userId),

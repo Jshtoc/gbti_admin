@@ -9,8 +9,9 @@ const TABS = [
   { href: '/', label: '개요' },
   { href: '/last-seen', label: '마지막 접속 기록' },
   { href: '/avg-join', label: '평균 접속 시간대' },
+  { href: '/idle', label: '잠수 시간' },
 ];
-const OTHER_PAGES = ['/last-seen', '/avg-join'];
+const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle'];
 
 /** 상단 탭 메뉴. 멤버 상세는 개요에 속하는 화면으로 본다 */
 export function TabNav() {

@@ -1,0 +1,27 @@
+.track {
+  display: block;
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.percent {
+  font-family: var(--font-num);
+  font-size: 18px;
+  color: var(--fg);
+}
+
+@media (max-width: 640px) {
+  .percent {
+    font-size: 16px;
+  }
+}

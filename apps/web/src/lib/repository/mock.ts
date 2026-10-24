@@ -7,6 +7,7 @@ import type {
   GameTime,
   MemberActivity,
   MemberAvgJoin,
+  MemberIdle,
   MemberLastVoice,
   MemberRef,
   PartnerTime,
@@ -113,6 +114,8 @@ interface RoomStateInterval {
 
 interface MockDataset {
   voice: VoiceInterval[];
+  /** voice_mute_sessions 와 같은 구조: 음성 세션 안에서 마이크를 끈 구간 */
+  mute: Interval[];
   rooms: RoomStateInterval[];
   presence: Interval[];
   activity: ActivityInterval[];
@@ -243,7 +246,30 @@ function generate(now: Date): MockDataset {
     if (!current || end > current) lastSeen.set(p.userId, end);
   }
 
-  return { voice, rooms, presence, activity, lastSeen };
+  return { voice, mute: generateMute(voice, now), rooms, presence, activity, lastSeen };
+}
+
+/** 눈팅족은 대부분 마이크를 끄고 있고, 나머지는 세션마다 가끔 잠깐씩 끈다. 위 생성과 난수열을 따로 써서 기존 목데이터는 그대로 */
+function generateMute(voice: VoiceInterval[], now: Date): Interval[] {
+  const rand = createRandom(20261024);
+  const mute: Interval[] = [];
+  for (const v of voice) {
+    const start = v.startedAt.getTime();
+    const end = (v.endedAt ?? now).getTime();
+    const span = end - start;
+    const share = v.userId === 'u15' ? 0.8 : rand() < 0.6 ? rand() * 0.35 : 0;
+    if (share === 0 || span < 10 * MIN) continue;
+
+    const segments = v.userId === 'u15' ? 1 : 1 + Math.floor(rand() * 2);
+    const segLen = (span * share) / segments;
+    for (let i = 0; i < segments; i++) {
+      const from = start + ((span - segLen) * (i + rand())) / segments;
+      const to = Math.min(end, from + segLen);
+      // 세션이 진행 중이고 끝까지 끈 상태면 구간도 진행 중
+      mute.push({ userId: v.userId, startedAt: new Date(from), endedAt: v.endedAt === null && to >= end ? null : new Date(to) });
+    }
+  }
+  return mute;
 }
 
 // ─── 집계 (packages/db/src/queries.ts 의 SQL과 같은 규칙) ─────────
@@ -370,6 +396,26 @@ export function createMockRepository(): DashboardRepository {
           avgSecondOfDay: avg === null ? null : Math.round(avg + FIRST_JOIN_DAY_START_HOUR * 3600) % 86400,
           days: offsets.length,
         };
+      });
+    },
+
+    async getMemberIdle(range) {
+      const now = new Date();
+      const voice = sumByUser(countedVoice, range, now);
+      // SQL과 같은 규칙: 마이크 끈 구간 × 음성 세션(대기 채널 제외)의 겹침
+      const idle = new Map<string, number>();
+      for (const m of data.mute) {
+        if (!overlaps(m, range, now)) continue;
+        for (const v of countedVoice) {
+          if (v.userId !== m.userId || !overlaps(v, range, now)) continue;
+          const start = new Date(Math.max(m.startedAt.getTime(), v.startedAt.getTime()));
+          const end = new Date(Math.min(endOf(m, now).getTime(), endOf(v, now).getTime()));
+          if (end > start) idle.set(m.userId, (idle.get(m.userId) ?? 0) + clippedSeconds(start, end, range));
+        }
+      }
+      return COUNTED.map((m): MemberIdle => {
+        const voiceSeconds = voice.get(m.userId) ?? 0;
+        return { ...toRef(m), username: m.username, voiceSeconds, idleSeconds: Math.min(idle.get(m.userId) ?? 0, voiceSeconds) };
       });
     },
 

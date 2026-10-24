@@ -11,6 +11,7 @@ import type {
   GameTime,
   MemberActivity,
   MemberAvgJoin,
+  MemberIdle,
   MemberLastVoice,
   MemberListItem,
   PartnerTime,
@@ -144,6 +145,59 @@ export async function getMemberActivity(
     voiceSeconds: r.voice_seconds,
     onlineSeconds: r.online_seconds,
     topGame: r.top_game,
+  }));
+}
+
+/**
+ * 멤버별 음성 시간과 그중 잠수(마이크 끈) 시간. 음성방생성 같은 대기 채널은 음성 시간과 같이 뺀다.
+ * 잠수 시간 = 마이크 끈 구간과 음성 세션의 겹침 (둘 다 유저당 겹치지 않는 구간이라 중복 집계 없음).
+ */
+export async function getMemberIdle(guildId: string, range: DateRange): Promise<MemberIdle[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    voice_seconds: number;
+    idle_seconds: number;
+  }>(sql`
+    with voice as (
+      select v.user_id, sum(${clippedSeconds('v', range)}) as s
+      from voice_sessions v
+      where v.guild_id = ${guildId} and ${overlapsRange('v', range)} and ${notExcludedChannel('v')}
+      group by v.user_id
+    ),
+    idle as (
+      select mu.user_id, sum(${sharedSeconds('mu', 'v', range)}) as s
+      from voice_mute_sessions mu
+      join voice_sessions v
+        on v.guild_id = mu.guild_id
+       and v.user_id = mu.user_id
+       and v.started_at < ${endOf('mu')}
+       and mu.started_at < ${endOf('v')}
+      where mu.guild_id = ${guildId}
+        and ${overlapsRange('mu', range)}
+        and ${overlapsRange('v', range)}
+        and ${notExcludedChannel('v')}
+      group by mu.user_id
+    )
+    select m.user_id, m.username, m.display_name, m.avatar_url,
+      coalesce(voice.s, 0)::float8 as voice_seconds,
+      coalesce(idle.s, 0)::float8 as idle_seconds
+    from members m
+    left join voice on voice.user_id = m.user_id
+    left join idle on idle.user_id = m.user_id
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+  `);
+
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    voiceSeconds: r.voice_seconds,
+    // 반올림 오차로 음성 시간을 넘지 않게
+    idleSeconds: Math.min(r.idle_seconds, r.voice_seconds),
   }));
 }
 

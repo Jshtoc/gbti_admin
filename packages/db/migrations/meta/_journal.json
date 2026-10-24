@@ -50,6 +50,13 @@
       "when": 1791286913175,
       "tag": "0006_stats_exclusion_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792848612889,
+      "tag": "0007_voice_mute_sessions",
+      "breakpoints": true
     }
   ]
 }

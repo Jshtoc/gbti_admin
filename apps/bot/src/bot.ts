@@ -10,6 +10,7 @@ import {
   type PartialGuildMember,
   type Presence,
   type VoiceBasedChannel,
+  type VoiceState,
 } from 'discord.js';
 
 import { RETENTION_DAYS } from '@gbti/db/retention';
@@ -48,6 +49,11 @@ function playingGames(presence: Presence | null | undefined): string[] {
   if (!presence || presenceStatus(presence) === 'offline') return [];
   const names = presence.activities.filter((a) => a.type === ActivityType.Playing).map((a) => normalizeGameName(a.name));
   return [...new Set(names)];
+}
+
+/** 마이크를 끈 상태: 본인 음소거, 헤드셋 소리 끔, 관리자 음소거 중 하나라도 (잠수 시간 집계용) */
+function isMuted(voice: VoiceState): boolean {
+  return Boolean(voice.selfMute || voice.selfDeaf || voice.serverMute || voice.serverDeaf);
 }
 
 function roomOccupants(channel: VoiceBasedChannel): RoomOccupant[] {
@@ -99,7 +105,7 @@ async function readSnapshot(guild: Guild): Promise<GuildSnapshot> {
   const humans = [...allMembers.values()].filter((m) => !m.user.bot);
   const voice = humans
     .filter((m) => m.voice.channel)
-    .map((m) => ({ userId: m.id, channelId: m.voice.channel!.id, channelName: m.voice.channel!.name }));
+    .map((m) => ({ userId: m.id, channelId: m.voice.channel!.id, channelName: m.voice.channel!.name, muted: isMuted(m.voice) }));
 
   const rooms = [...fetchedChannels.values()]
     .filter((c): c is VoiceBasedChannel => c !== null && c.isVoiceBased())
@@ -225,14 +231,23 @@ export function createBot(tracker: Tracker) {
   // ─── 음성 ───
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     if (!isOurGuild(newState.guild.id) || newState.member?.user.bot) return;
-    if (oldState.channelId === newState.channelId) return; // 음소거 등 같은 방 안의 변화
     const at = new Date();
     const userId = newState.id;
     const joined = newState.channel;
+    const muted = joined ? isMuted(newState) : false;
+
+    if (oldState.channelId === newState.channelId) {
+      // 같은 방 안의 변화: 마이크 끔/켬만 기록한다
+      if (isMuted(oldState) !== muted) void enqueue('voice mute', () => tracker.setMuted(userId, muted, at));
+      return;
+    }
 
     if (joined) {
       const name = joined.name;
-      void enqueue('voice join', () => tracker.openVoice(userId, joined.id, name, at));
+      void enqueue('voice join', async () => {
+        await tracker.openVoice(userId, joined.id, name, at);
+        await tracker.setMuted(userId, muted, at);
+      });
     } else {
       void enqueue('voice leave', () => tracker.closeVoice(userId, at));
     }

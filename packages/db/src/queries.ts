@@ -296,6 +296,41 @@ export async function getPartners(
   }));
 }
 
+/** 두 멤버가 같은 음성 채널에 함께 있던 시간. 둘 중 하나라도 없거나 듀오 집계 제외 대상이면 null */
+export async function getPairTime(
+  guildId: string,
+  aId: string,
+  bId: string,
+  range: DateRange,
+): Promise<CoPlayPair | null> {
+  const members = await getDb().execute<{ user_id: string; display_name: string; avatar_url: string | null }>(sql`
+    select m.user_id, m.display_name, m.avatar_url
+    from members m
+    where m.guild_id = ${guildId} and m.user_id in (${aId}, ${bId}) and ${notExcludedMember('m', { duo: true })}
+  `);
+  const a = members.find((m) => m.user_id === aId);
+  const b = members.find((m) => m.user_id === bId);
+  if (!a || !b) return null;
+
+  const [row] = await getDb().execute<{ seconds: number }>(sql`
+    select coalesce(sum(${sharedSeconds('a', 'b', range)}), 0)::float8 as seconds
+    from voice_sessions a
+    join voice_sessions b
+      on b.guild_id = a.guild_id
+     and b.channel_id = a.channel_id
+     and a.started_at < ${endOf('b')}
+     and b.started_at < ${endOf('a')}
+    where a.guild_id = ${guildId}
+      and a.user_id = ${aId}
+      and b.user_id = ${bId}
+      and ${overlapsRange('a', range)}
+      and ${overlapsRange('b', range)}
+  `);
+
+  const ref = (m: typeof a) => ({ userId: m.user_id, displayName: m.display_name, avatarUrl: m.avatar_url });
+  return { a: ref(a), b: ref(b), seconds: row?.seconds ?? 0 };
+}
+
 /**
  * 일별 음성 체류 시간 합계. 기본은 Asia/Seoul 자정 기준 하루,
  * 시간대 필터(range.windows)가 있으면 구간 하나를 하루로 본다. userId를 주면 해당 멤버만.

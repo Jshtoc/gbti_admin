@@ -445,6 +445,20 @@ export function createMockRepository(): DashboardRepository {
         });
     },
 
+    async getPairTime(aId, bId, range) {
+      const a = memberById.get(aId);
+      const b = memberById.get(bId);
+      if (!a || !b || !isCounted(aId) || !isCounted(bId)) return null;
+
+      const now = new Date();
+      const sessions = data.voice.filter((v) => overlaps(v, range, now)); // 듀오는 모든 채널 (SQL과 같음)
+      const mineA = sessions.filter((s) => s.userId === aId);
+      const mineB = sessions.filter((s) => s.userId === bId);
+      let seconds = 0;
+      for (const x of mineA) for (const y of mineB) seconds += sharedSeconds(x, y, range, now);
+      return { a: toRef(a), b: toRef(b), seconds };
+    },
+
     async getPartners(userId, range, limit = 5) {
       const now = new Date();
       const sessions = data.voice.filter((v) => overlaps(v, range, now)) // 듀오는 모든 채널 (SQL과 같음);

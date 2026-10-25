@@ -64,3 +64,23 @@
     height: 44px;
   }
 }
+
+/* 결과 타일을 위에서 아래로 쌓는다 */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 두 멤버 비율 타일은 PC에서 50% / 50%, 모바일에선 한 줄씩 */
+.shares {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .shares {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

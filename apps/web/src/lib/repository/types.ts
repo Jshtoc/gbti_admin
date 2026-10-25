@@ -8,6 +8,7 @@ import type {
   MemberIdle,
   MemberLastVoice,
   MemberListItem,
+  PairTime,
   PartnerTime,
   VoiceSessionGroup,
 } from '@gbti/db';
@@ -25,7 +26,7 @@ export interface DashboardRepository {
   getMemberIdle(range: DateRange): Promise<MemberIdle[]>;
   getCoPlayPairs(range: DateRange, limit?: number): Promise<CoPlayPair[]>;
   /** 두 멤버가 같은 음성 채널에 함께 있던 시간. 멤버가 없거나 듀오 집계 제외면 null */
-  getPairTime(aId: string, bId: string, range: DateRange): Promise<CoPlayPair | null>;
+  getPairTime(aId: string, bId: string, range: DateRange): Promise<PairTime | null>;
   getPartners(userId: string, range: DateRange, limit?: number): Promise<PartnerTime[]>;
   getDailyVoice(range: DateRange, userId?: string): Promise<DailyVoice[]>;
   getGameTimes(userId: string, range: DateRange): Promise<GameTime[]>;

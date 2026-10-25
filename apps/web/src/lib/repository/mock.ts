@@ -456,7 +456,14 @@ export function createMockRepository(): DashboardRepository {
       const mineB = sessions.filter((s) => s.userId === bId);
       let seconds = 0;
       for (const x of mineA) for (const y of mineB) seconds += sharedSeconds(x, y, range, now);
-      return { a: toRef(a), b: toRef(b), seconds };
+      const voice = sumByUser(countedVoice, range, now);
+      return {
+        a: toRef(a),
+        b: toRef(b),
+        seconds,
+        aVoiceSeconds: voice.get(aId) ?? 0,
+        bVoiceSeconds: voice.get(bId) ?? 0,
+      };
     },
 
     async getPartners(userId, range, limit = 5) {

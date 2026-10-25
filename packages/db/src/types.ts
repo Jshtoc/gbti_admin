@@ -64,6 +64,12 @@ export interface CoPlayPair {
   seconds: number;
 }
 
+/** 두 멤버가 함께한 시간 + 각자의 전체 음성 시간(음성방생성 제외, 음성 집계와 같은 규칙) */
+export interface PairTime extends CoPlayPair {
+  aVoiceSeconds: number;
+  bVoiceSeconds: number;
+}
+
 export interface PartnerTime {
   partner: MemberRef;
   seconds: number;

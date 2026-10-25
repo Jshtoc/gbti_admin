@@ -1,4 +1,5 @@
 import { PairSearch } from '@/components/dashboard/PairSearch';
+import pairStyles from '@/components/dashboard/PairSearch.module.css';
 import { Avatar } from '@/components/ui/Avatar';
 import { PageHero } from '@/components/ui/PageHero';
 import { PeriodControl } from '@/components/ui/PeriodControl';
@@ -16,6 +17,9 @@ export const dynamic = 'force-dynamic';
 interface PairPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
+
+/** 각자의 음성 시간 중 함께한 비율 (%). 음성 기록이 없으면 0 */
+const sharePercent = (shared: number, total: number) => (total > 0 ? Math.min(100, (shared / total) * 100) : 0);
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
 
@@ -46,19 +50,40 @@ export default async function PairPage({ searchParams }: PairPageProps) {
       {a && b && a !== b && (
         <section className={styles.section} aria-live="polite">
           {pair ? (
-            <StatTile
-              highlight
-              label="끼리끼리 플레이 타임"
-              value={toHours(pair.seconds)}
-              unit="시간"
-              caption={
-                <>
-                  <Avatar name={pair.a.displayName} src={pair.a.avatarUrl} size="sm" /> {pair.a.displayName} &amp;{' '}
-                  <Avatar name={pair.b.displayName} src={pair.b.avatarUrl} size="sm" /> {pair.b.displayName}
-                  {pair.seconds > 0 ? ` · ${formatDuration(pair.seconds)}` : ' · 함께한 기록 없음'}
-                </>
-              }
-            />
+            <div className={pairStyles.results}>
+              <StatTile
+                highlight
+                label="끼리끼리 플레이 타임"
+                value={toHours(pair.seconds)}
+                unit="시간"
+                caption={
+                  <>
+                    <Avatar name={pair.a.displayName} src={pair.a.avatarUrl} size="sm" /> {pair.a.displayName} &amp;{' '}
+                    <Avatar name={pair.b.displayName} src={pair.b.avatarUrl} size="sm" /> {pair.b.displayName}
+                    {pair.seconds > 0 ? ` · ${formatDuration(pair.seconds)}` : ' · 함께한 기록 없음'}
+                  </>
+                }
+              />
+              <div className={pairStyles.shares}>
+              {[
+                { label: '1번째 멤버', who: pair.a, total: pair.aVoiceSeconds },
+                { label: '2번째 멤버', who: pair.b, total: pair.bVoiceSeconds },
+              ].map(({ label, who, total }) => (
+                <StatTile
+                  key={who.userId}
+                  label={`${label} 플레이 타임 중 끼리끼리`}
+                  value={sharePercent(pair.seconds, total).toFixed(1)}
+                  unit="%"
+                  caption={
+                    <>
+                      <Avatar name={who.displayName} src={who.avatarUrl} size="sm" /> {who.displayName} · 전체{' '}
+                      {formatDuration(total)} 중 {formatDuration(pair.seconds)}
+                    </>
+                  }
+                />
+              ))}
+              </div>
+            </div>
           ) : (
             <p>이 두 멤버는 통계에서 제외되어 조회할 수 없습니다.</p>
           )}

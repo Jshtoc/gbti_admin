@@ -14,6 +14,7 @@ import type {
   MemberIdle,
   MemberLastVoice,
   MemberListItem,
+  PairTime,
   PartnerTime,
   VoiceSessionGroup,
 } from './types';
@@ -302,7 +303,7 @@ export async function getPairTime(
   aId: string,
   bId: string,
   range: DateRange,
-): Promise<CoPlayPair | null> {
+): Promise<PairTime | null> {
   const members = await getDb().execute<{ user_id: string; display_name: string; avatar_url: string | null }>(sql`
     select m.user_id, m.display_name, m.avatar_url
     from members m
@@ -328,7 +329,22 @@ export async function getPairTime(
   `);
 
   const ref = (m: typeof a) => ({ userId: m.user_id, displayName: m.display_name, avatarUrl: m.avatar_url });
-  return { a: ref(a), b: ref(b), seconds: row?.seconds ?? 0 };
+  const voice = await getDb().execute<{ user_id: string; seconds: number }>(sql`
+    select v.user_id, coalesce(sum(${clippedSeconds('v', range)}), 0)::float8 as seconds
+    from voice_sessions v
+    where v.guild_id = ${guildId} and v.user_id in (${aId}, ${bId})
+      and ${overlapsRange('v', range)} and ${notExcludedChannel('v')}
+    group by v.user_id
+  `);
+  const voiceOf = (id: string) => voice.find((v) => v.user_id === id)?.seconds ?? 0;
+
+  return {
+    a: ref(a),
+    b: ref(b),
+    seconds: row?.seconds ?? 0,
+    aVoiceSeconds: voiceOf(aId),
+    bVoiceSeconds: voiceOf(bId),
+  };
 }
 
 /**

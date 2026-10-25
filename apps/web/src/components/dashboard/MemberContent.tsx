@@ -25,7 +25,7 @@ export async function MemberContent({ userId, period }: MemberContentProps) {
 
   const [members, partners, recent, lastExits, avgJoins] = await Promise.all([
     repo.getMemberActivity(range),
-    repo.getPartners(userId, range, 5),
+    repo.getPartners(userId, range, 10),
     repo.getVoiceSessionGroups(userId, range, 8),
     repo.getLastVoiceExits(),
     repo.getAverageFirstJoins(),

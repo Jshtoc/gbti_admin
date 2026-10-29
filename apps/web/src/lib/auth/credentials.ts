@@ -25,13 +25,13 @@ function matches(id: string, password: string, expectedId?: string, expectedPass
 }
 
 /**
- * 제한 계정(VIEWER_ID / VIEWER_PASSWORD / VIEWER_MEMBER_NAME): 멤버 목록에 VIEWER_MEMBER_NAME 닉네임의 멤버 한 명만 보인다.
+ * 제한 계정(VIEWER_ID / VIEWER_PASSWORD / VIEWER_SHOW_USER_ID): 통계 제외 규칙으로 빠져 있는 VIEWER_SHOW_USER_ID 멤버가 이 계정에서만 보인다.
  * 관리자 계정과 마찬가지로 환경 변수로만 둔다.
  */
 export function verifyCredentials(id: string, password: string): SessionRole | null {
   const admin = matches(id, password, process.env.ADMIN_ID, process.env.ADMIN_PASSWORD);
   const viewer =
-    Boolean(process.env.VIEWER_MEMBER_NAME) &&
+    Boolean(process.env.VIEWER_SHOW_USER_ID) &&
     matches(id, password, process.env.VIEWER_ID, process.env.VIEWER_PASSWORD);
   if (admin) return 'admin';
   return viewer ? 'viewer' : null;

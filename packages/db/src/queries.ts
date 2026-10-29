@@ -25,8 +25,9 @@ const TZ = 'Asia/Seoul';
  * 통계에서 빼는 멤버가 아닌 조건. alias = members 테이블 별칭
  * - 닉네임에 [게스트]·[부계정] 태그가 있는 멤버
  * - stats_excluded_members 에 지정된 계정 (scope = all, duo 면 듀오 집계에서만 제외)
+ * show 를 주면 그 멤버는 제외 규칙과 관계없이 포함한다.
  */
-function notExcludedMember(alias: string, { duo = false } = {}): SQL {
+function notExcludedMember(alias: string, { duo = false, show }: { duo?: boolean; show?: string } = {}): SQL {
   const m = sql.raw(alias);
   const byTag = EXCLUDED_NAME_TAGS.map((tag) => sql`position(${tag} in ${m}.display_name) = 0`);
   const scopes = duo ? sql`('all', 'duo')` : sql`('all')`;
@@ -34,7 +35,9 @@ function notExcludedMember(alias: string, { duo = false } = {}): SQL {
     select 1 from stats_excluded_members x
     where x.guild_id = ${m}.guild_id and x.user_id = ${m}.user_id and x.scope in ${scopes}
   )`;
-  return sql.join([...byTag, byAccount], sql` and `);
+  const counted = sql.join([...byTag, byAccount], sql` and `);
+  // show = 이 계정에게만 제외를 풀어 보여줄 멤버 (제한 계정용)
+  return show ? sql`(${counted} or ${m}.user_id = ${show})` : counted;
 }
 
 /** 음성 시간에서 빼는 채널(음성방생성 등)이 아닌 조건. alias = voice_sessions 테이블 별칭 */
@@ -91,6 +94,7 @@ function overlapsRange(alias: string, range: DateRange): SQL {
 export async function getMemberActivity(
   guildId: string,
   range: DateRange,
+  show?: string,
 ): Promise<MemberActivity[]> {
   const rows = await getDb().execute<{
     user_id: string;
@@ -134,7 +138,7 @@ export async function getMemberActivity(
     left join voice on voice.user_id = m.user_id
     left join online on online.user_id = m.user_id
     left join top_game on top_game.user_id = m.user_id
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
   `);
 
   return rows.map((r) => ({
@@ -153,7 +157,7 @@ export async function getMemberActivity(
  * 멤버별 음성 시간과 그중 잠수(마이크 끈) 시간. 음성방생성 같은 대기 채널은 음성 시간과 같이 뺀다.
  * 잠수 시간 = 마이크 끈 구간과 음성 세션의 겹침 (둘 다 유저당 겹치지 않는 구간이라 중복 집계 없음).
  */
-export async function getMemberIdle(guildId: string, range: DateRange): Promise<MemberIdle[]> {
+export async function getMemberIdle(guildId: string, range: DateRange, show?: string): Promise<MemberIdle[]> {
   const rows = await getDb().execute<{
     user_id: string;
     username: string;
@@ -188,7 +192,7 @@ export async function getMemberIdle(guildId: string, range: DateRange): Promise<
     from members m
     left join voice on voice.user_id = m.user_id
     left join idle on idle.user_id = m.user_id
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
   `);
 
   return rows.map((r) => ({
@@ -210,6 +214,7 @@ export async function getCoPlayPairs(
   guildId: string,
   range: DateRange,
   limit = 10,
+  show?: string,
 ): Promise<CoPlayPair[]> {
   const rows = await getDb().execute<{
     a_id: string;
@@ -239,8 +244,8 @@ export async function getCoPlayPairs(
       p.b_id, mb.display_name as b_name, mb.avatar_url as b_avatar,
       p.seconds::float8 as seconds
     from pairs p
-    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id and ${notExcludedMember('ma', { duo: true })}
-    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id and ${notExcludedMember('mb', { duo: true })}
+    join members ma on ma.guild_id = ${guildId} and ma.user_id = p.a_id and ${notExcludedMember('ma', { duo: true, show })}
+    join members mb on mb.guild_id = ${guildId} and mb.user_id = p.b_id and ${notExcludedMember('mb', { duo: true, show })}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -259,6 +264,7 @@ export async function getPartners(
   userId: string,
   range: DateRange,
   limit = 5,
+  show?: string,
 ): Promise<PartnerTime[]> {
   const rows = await getDb().execute<{
     partner_id: string;
@@ -284,8 +290,8 @@ export async function getPartners(
     )
     select p.partner_id, m.display_name, m.avatar_url, p.seconds::float8 as seconds
     from partners p
-    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id and ${notExcludedMember('m', { duo: true })}
-    join members me on me.guild_id = ${guildId} and me.user_id = ${userId} and ${notExcludedMember('me', { duo: true })}
+    join members m on m.guild_id = ${guildId} and m.user_id = p.partner_id and ${notExcludedMember('m', { duo: true, show })}
+    join members me on me.guild_id = ${guildId} and me.user_id = ${userId} and ${notExcludedMember('me', { duo: true, show })}
     where p.seconds > 0
     order by p.seconds desc
     limit ${limit}
@@ -303,11 +309,12 @@ export async function getPairTime(
   aId: string,
   bId: string,
   range: DateRange,
+  show?: string,
 ): Promise<PairTime | null> {
   const members = await getDb().execute<{ user_id: string; display_name: string; avatar_url: string | null }>(sql`
     select m.user_id, m.display_name, m.avatar_url
     from members m
-    where m.guild_id = ${guildId} and m.user_id in (${aId}, ${bId}) and ${notExcludedMember('m', { duo: true })}
+    where m.guild_id = ${guildId} and m.user_id in (${aId}, ${bId}) and ${notExcludedMember('m', { duo: true, show })}
   `);
   const a = members.find((m) => m.user_id === aId);
   const b = members.find((m) => m.user_id === bId);
@@ -455,7 +462,7 @@ export async function getVoiceSessionGroups(
  * 멤버별 마지막 음성방 퇴장 시각 (보관 기간 안 기록 기준). 음성방생성 같은 대기 채널은 제외.
  * 진행 중인 세션이 있으면 inVoice = true.
  */
-export async function getLastVoiceExits(guildId: string): Promise<MemberLastVoice[]> {
+export async function getLastVoiceExits(guildId: string, show?: string): Promise<MemberLastVoice[]> {
   const rows = await getDb().execute<{
     user_id: string;
     username: string;
@@ -477,7 +484,7 @@ export async function getLastVoiceExits(guildId: string): Promise<MemberLastVoic
       order by v.ended_at desc nulls first, v.started_at desc
       limit 1
     ) last on true
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
   `);
 
   return rows.map((r) => ({
@@ -495,7 +502,7 @@ export async function getLastVoiceExits(guildId: string): Promise<MemberLastVoic
  * 멤버별 최근 FIRST_JOIN_DAYS일 평균 첫 음성방 입장 시각. 하루는 KST 06:00 기준(firstJoin.ts),
  * 그날 가장 먼저 시작한 세션의 시작 시각을 평균낸다. 음성방생성 같은 대기 채널은 제외.
  */
-export async function getAverageFirstJoins(guildId: string): Promise<MemberAvgJoin[]> {
+export async function getAverageFirstJoins(guildId: string, show?: string): Promise<MemberAvgJoin[]> {
   const shift = `${FIRST_JOIN_DAY_START_HOUR} hours`;
   const span = `${FIRST_JOIN_DAYS - 1} days`;
   const rows = await getDb().execute<{
@@ -522,7 +529,7 @@ export async function getAverageFirstJoins(guildId: string): Promise<MemberAvgJo
         group by date_trunc('day', s.shifted)
       ) d
     ) f on true
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
   `);
 
   return rows.map((r) => ({
@@ -537,7 +544,7 @@ export async function getAverageFirstJoins(guildId: string): Promise<MemberAvgJo
 }
 
 /** 현재 서버에 있는 (봇 아닌) 멤버 목록. 멤버 검색/선택용 가벼운 조회 */
-export async function getMembers(guildId: string): Promise<MemberListItem[]> {
+export async function getMembers(guildId: string, show?: string): Promise<MemberListItem[]> {
   const rows = await getDb().execute<{
     user_id: string;
     username: string;
@@ -546,7 +553,7 @@ export async function getMembers(guildId: string): Promise<MemberListItem[]> {
   }>(sql`
     select m.user_id, m.username, m.display_name, m.avatar_url
     from members m
-    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m')}
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
     order by m.display_name
   `);
 

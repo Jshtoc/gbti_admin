@@ -27,7 +27,7 @@ export default async function PairPage({ searchParams }: PairPageProps) {
   await requireSession();
   const query = await searchParams;
   const period = parsePeriod(query);
-  const repo = getRepository();
+  const repo = await getRepository();
 
   const members = await repo.getMembers();
   // 목록에 없는 아이디는 선택 안 한 것으로 본다

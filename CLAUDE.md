@@ -35,6 +35,7 @@
 ## 인증
 
 - 관리자 1명, ID/PW는 환경 변수 `ADMIN_ID` / `ADMIN_PASSWORD` (공개 저장소라 코드·커밋에 넣지 않는다. 로컬은 `apps/web/.env.local`).
+- **제한 계정**: `VIEWER_ID` / `VIEWER_PASSWORD` / `VIEWER_MEMBER_NAME`(닉네임이 정확히 일치하는 멤버 1명)을 설정하면 두 번째 계정이 생긴다. 이 계정은 `getRepository()`(세션 역할 반영, async)가 `restricted.ts`로 감싼 데이터만 봐서 멤버 목록·집계에 그 멤버 한 명만 나온다(듀오 순위·끼리끼리 검색은 막힘). 세션 토큰 버전 `v1` = 관리자, `v2` = 제한 계정. 마찬가지로 코드·커밋에 값을 넣지 않는다.
 - 로그인 성공 시 HMAC 서명 세션 쿠키(`gbti_session`, httpOnly, 30일). 서명 키는 ID/PW(+선택 `AUTH_SECRET`)에서 만들므로 비밀번호를 바꾸면 기존 세션이 끊긴다.
 - `src/proxy.ts`(Next 16의 middleware)가 비로그인 요청을 `/login?next=...`로 보내고, 각 페이지도 `requireSession()`으로 한 번 더 확인한다. 새 페이지를 만들면 `requireSession()`을 꼭 넣는다.
 

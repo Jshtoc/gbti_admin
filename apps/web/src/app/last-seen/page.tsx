@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function LastSeenPage() {
   await requireSession();
-  const members = await getRepository().getLastVoiceExits();
+  const members = await (await getRepository()).getLastVoiceExits();
 
   // 지금 음성 중 → 최근에 나간 순 → 기록 없음. 같으면 이름순
   const rank = (m: (typeof members)[number]) => (m.inVoice ? Infinity : (m.lastLeftAt?.getTime() ?? -Infinity));

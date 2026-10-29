@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AvgJoinPage() {
   await requireSession();
-  const members = await getRepository().getAverageFirstJoins();
+  const members = await (await getRepository()).getAverageFirstJoins();
 
   // 하루 기준(06:00)으로 이른 순 → 기록 없음. 같으면 이름순
   const dayStartSec = FIRST_JOIN_DAY_START_HOUR * 3600;

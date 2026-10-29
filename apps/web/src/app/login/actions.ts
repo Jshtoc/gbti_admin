@@ -32,14 +32,15 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: '서버에 관리자 계정(ADMIN_ID / ADMIN_PASSWORD)이 설정되지 않았습니다.', id };
   }
 
-  if (!verifyCredentials(parsed.data.id, parsed.data.password)) {
+  const role = verifyCredentials(parsed.data.id, parsed.data.password);
+  if (!role) {
     // 무차별 대입을 조금이라도 늦추기 위한 지연
     await new Promise((resolve) => setTimeout(resolve, 600));
     return { error: '아이디 또는 비밀번호가 올바르지 않습니다.', id };
   }
 
   const store = await cookies();
-  store.set(SESSION_COOKIE, await createSessionToken(), {
+  store.set(SESSION_COOKIE, await createSessionToken(role), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

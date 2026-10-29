@@ -17,7 +17,7 @@ interface IdlePageProps {
 export default async function IdlePage({ searchParams }: IdlePageProps) {
   await requireSession();
   const period = parsePeriod(await searchParams);
-  const members = await getRepository().getMemberIdle(toDateRange(period));
+  const members = await (await getRepository()).getMemberIdle(toDateRange(period));
 
   // 잠수 시간 많은 순 → 음성 기록 없는 멤버는 맨 뒤. 같으면 이름순
   const rows: IdleRow[] = members

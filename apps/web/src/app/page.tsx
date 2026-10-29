@@ -27,7 +27,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
   const sort = parseMemberSort(params.sort);
 
   // 상단 필터에 필요한 가벼운 멤버 목록만 먼저 가져온다 (무거운 집계는 아래 Suspense 안에서)
-  const members = await getRepository().getMembers();
+  const members = await (await getRepository()).getMembers();
   // 존재하는 멤버만 선택으로 인정한다 (잘못된 값은 전체 보기)
   const memberId = members.find((m) => m.userId === params.member)?.userId;
   const query: OverviewQuery = { period, sort, member: memberId };

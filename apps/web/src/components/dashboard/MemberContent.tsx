@@ -21,7 +21,7 @@ interface MemberContentProps {
 /** 멤버 상세 본문 (집계 데이터). 페이지에서 기간을 key로 한 Suspense로 감싼다 */
 export async function MemberContent({ userId, period }: MemberContentProps) {
   const range = toDateRange(period);
-  const repo = getRepository();
+  const repo = await getRepository();
 
   const [members, partners, recent, lastExits, avgJoins] = await Promise.all([
     repo.getMemberActivity(range),

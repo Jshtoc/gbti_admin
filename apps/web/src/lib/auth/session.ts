@@ -10,9 +10,14 @@ const encoder = new TextEncoder();
  * 서명 키. 아이디/비밀번호가 바뀌면 키도 바뀌어 기존 세션이 모두 무효가 된다.
  * AUTH_SECRET을 따로 두면 그 값도 섞는다 (선택).
  */
-function signingSecret(): string | null {
-  const id = process.env.ADMIN_ID;
-  const password = process.env.ADMIN_PASSWORD;
+export type SessionRole = 'admin' | 'viewer';
+
+/** 토큰 버전이 역할을 나타낸다: v1 = 관리자, v2 = 제한 계정 */
+const ROLE_VERSION: Record<SessionRole, string> = { admin: 'v1', viewer: 'v2' };
+
+function signingSecret(role: SessionRole): string | null {
+  const id = role === 'admin' ? process.env.ADMIN_ID : process.env.VIEWER_ID;
+  const password = role === 'admin' ? process.env.ADMIN_PASSWORD : process.env.VIEWER_PASSWORD;
   if (!id || !password) return null;
   return `${process.env.AUTH_SECRET ?? ''}|${id}|${password}`;
 }
@@ -37,22 +42,28 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export async function createSessionToken(now = Date.now()): Promise<string> {
-  const secret = signingSecret();
-  if (!secret) throw new Error('ADMIN_ID / ADMIN_PASSWORD is not set');
-  const payload = `v1.${now + SESSION_MAX_AGE_SECONDS * 1000}`;
+export async function createSessionToken(role: SessionRole = 'admin', now = Date.now()): Promise<string> {
+  const secret = signingSecret(role);
+  if (!secret) throw new Error('account credentials are not set');
+  const payload = `${ROLE_VERSION[role]}.${now + SESSION_MAX_AGE_SECONDS * 1000}`;
   return `${payload}.${await sign(payload, secret)}`;
 }
 
-export async function verifySessionToken(token: string | undefined, now = Date.now()): Promise<boolean> {
-  const secret = signingSecret();
-  if (!token || !secret) return false;
+export async function getSessionRole(token: string | undefined, now = Date.now()): Promise<SessionRole | null> {
+  if (!token) return null;
 
   const [version, expires, signature] = token.split('.');
-  if (version !== 'v1' || !expires || !signature) return false;
-  if (!/^\d+$/.test(expires) || Number(expires) < now) return false;
+  const role = (Object.keys(ROLE_VERSION) as SessionRole[]).find((r) => ROLE_VERSION[r] === version);
+  if (!role || !expires || !signature) return null;
+  if (!/^\d+$/.test(expires) || Number(expires) < now) return null;
 
-  return constantTimeEqual(signature, await sign(`${version}.${expires}`, secret));
+  const secret = signingSecret(role);
+  if (!secret) return null;
+  return constantTimeEqual(signature, await sign(`${version}.${expires}`, secret)) ? role : null;
+}
+
+export async function verifySessionToken(token: string | undefined, now = Date.now()): Promise<boolean> {
+  return (await getSessionRole(token, now)) !== null;
 }
 
 /** 로그인 후 돌아갈 경로. 외부 주소로 튕기는 open redirect를 막기 위해 내부 경로만 허용 */

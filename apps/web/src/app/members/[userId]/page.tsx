@@ -28,7 +28,7 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
   const period = parsePeriod(query);
 
   // 상단에 필요한 정보만 가벼운 목록에서 (무거운 집계는 아래 Suspense 안에서)
-  const member = (await getRepository().getMembers()).find((m) => m.userId === userId);
+  const member = (await (await getRepository()).getMembers()).find((m) => m.userId === userId);
   if (!member) notFound();
 
   return (

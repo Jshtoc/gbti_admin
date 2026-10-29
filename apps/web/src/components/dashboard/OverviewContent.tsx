@@ -29,7 +29,7 @@ interface OverviewContentProps {
  */
 export async function OverviewContent({ period, sort, memberId }: OverviewContentProps) {
   const range = toDateRange(period);
-  const repo = getRepository();
+  const repo = await getRepository();
 
   const members = await repo.getMemberActivity(range);
 

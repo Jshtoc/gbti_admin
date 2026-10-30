@@ -8,6 +8,7 @@ import {
   channels,
   members,
   messageCountsDaily,
+  offlineActivityEvents,
   presenceSessions,
   voiceMuteSessions,
   voiceRoomStates,
@@ -212,6 +213,16 @@ export class Tracker {
     }
   }
 
+  // ─── 온 오프 컨트롤 (온라인 상태가 아닌데 음성방·채팅) ──────────
+
+  /** 오프라인인 채로 음성방에 있거나 채팅을 친 순간을 남긴다 (메시지 내용은 받지 않는다) */
+  async recordOfflineActivity(events: { userId: string; source: 'voice' | 'message'; channelName: string | null }[], at: Date) {
+    if (events.length === 0) return;
+    await this.db
+      .insert(offlineActivityEvents)
+      .values(events.map((e) => ({ guildId: this.guildId, ...e, occurredAt: at })));
+  }
+
   // ─── 방 종류 ────────────────────────────────────────────
 
   /**
@@ -358,6 +369,11 @@ export class Tracker {
         });
       if (rooms.length > 0) await tx.insert(voiceRoomStates).values(rooms);
 
+      const offlineInVoice = snapshot.voice.filter((v) => snapshot.presences.find((p) => p.userId === v.userId)?.status === 'offline');
+      await scoped.recordOfflineActivity(
+        offlineInVoice.map((v) => ({ userId: v.userId, source: 'voice' as const, channelName: v.channelName })),
+        at,
+      );
       await scoped.touchLastSeen([...new Set([...online.map((p) => p.userId), ...snapshot.voice.map((v) => v.userId)])], at);
       await tx
         .insert(botStatus)
@@ -387,6 +403,11 @@ export class Tracker {
       .where(and(eq(messageCountsDaily.guildId, this.guildId), lt(messageCountsDaily.day, cutoff.toISOString().slice(0, 10))))
       .returning({ day: messageCountsDaily.day });
     deleted.message_counts_daily = messages.length;
+    const events = await this.db
+      .delete(offlineActivityEvents)
+      .where(and(eq(offlineActivityEvents.guildId, this.guildId), lt(offlineActivityEvents.occurredAt, cutoff)))
+      .returning({ id: offlineActivityEvents.id });
+    deleted.offline_activity_events = events.length;
     return deleted;
   }
 

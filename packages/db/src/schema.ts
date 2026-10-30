@@ -174,6 +174,25 @@ export const messageCountsDaily = pgTable(
 );
 
 /**
+ * 온라인 상태가 아닌데(오프라인·invisible) 음성방에 있거나 채팅을 친 순간의 기록 ("온 오프 컨트롤 유저").
+ * 메시지 내용은 저장하지 않는다. 음성은 입장·이동 시, 오프라인으로 바뀔 때, 봇 시작 시 음성방에 있을 때 남기고,
+ * 메시지는 같은 사람이 1분에 한 번만 남긴다.
+ */
+export const offlineActivityEvents = pgTable(
+  'offline_activity_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    guildId: text('guild_id').notNull(),
+    userId: text('user_id').notNull(),
+    source: text('source', { enum: ['voice', 'message'] }).notNull(),
+    /** 음성방 또는 채팅 채널 이름 */
+    channelName: text('channel_name'),
+    occurredAt: tstz('occurred_at').notNull(),
+  },
+  (t) => [index('offline_activity_events_user_idx').on(t.guildId, t.userId, t.occurredAt)],
+);
+
+/**
  * 봇 상태. 봇이 1분마다 last_heartbeat_at을 갱신한다.
  * 봇이 꺼졌다 켜지면 열려 있던 구간들을 마지막 하트비트 시각으로 닫아서
  * 꺼져 있던 동안이 체류 시간으로 잘못 집계되지 않게 한다.

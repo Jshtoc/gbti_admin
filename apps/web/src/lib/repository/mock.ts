@@ -9,6 +9,7 @@ import type {
   MemberAvgJoin,
   MemberIdle,
   MemberLastVoice,
+  MemberOffUser,
   MemberRef,
   PartnerTime,
   VoiceSessionGroup,
@@ -369,6 +370,39 @@ export function createMockRepository(): DashboardRepository {
           lastChannelName: v?.channelName ?? null,
         };
       });
+    },
+
+
+    async getOffUsers() {
+      const now = new Date();
+      // 음성: 세션이 시작될 때 온라인 구간이 없었으면 "오프라인으로 입장". 메시지는 목데이터에 없어 몇 명만 가짜로 넣는다
+      const events = new Map<string, MemberOffUser>();
+      const add = (m: MockMember, source: 'voice' | 'message', at: Date, channelName: string) => {
+        const cur = events.get(m.userId) ?? {
+          ...toRef(m),
+          username: m.username,
+          lastAt: at,
+          lastSource: source,
+          lastChannelName: channelName,
+          voiceCount: 0,
+          messageCount: 0,
+        };
+        if (source === 'voice') cur.voiceCount++;
+        else cur.messageCount++;
+        if (at >= cur.lastAt) Object.assign(cur, { lastAt: at, lastSource: source, lastChannelName: channelName });
+        events.set(m.userId, cur);
+      };
+      const counted = new Map(COUNTED.map((m) => [m.userId, m]));
+      for (const v of countedVoice) {
+        const m = counted.get(v.userId);
+        if (!m || v.startedAt > now) continue;
+        const online = data.presence.some((p) => p.userId === v.userId && p.startedAt <= v.startedAt && (p.endedAt ?? now) > v.startedAt);
+        if (!online) add(m, 'voice', v.startedAt, v.channelName);
+      }
+      COUNTED.filter((_, i) => i % 9 === 4).forEach((m, i) => {
+        add(m, 'message', new Date(now.getTime() - (i + 1) * 3 * HOUR), '일반');
+      });
+      return [...events.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
     },
 
     async getAverageFirstJoins() {

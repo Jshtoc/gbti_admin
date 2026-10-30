@@ -57,6 +57,13 @@
       "when": 1792848612889,
       "tag": "0007_voice_mute_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793362846629,
+      "tag": "0008_offline_activity_events",
+      "breakpoints": true
     }
   ]
 }

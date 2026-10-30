@@ -130,6 +130,7 @@ export function createBot(tracker: Tracker) {
       GatewayIntentBits.GuildMembers, // 특권 인텐트: 멤버 목록
       GatewayIntentBits.GuildPresences, // 특권 인텐트: 온라인 상태 / 게임
       GatewayIntentBits.GuildVoiceStates,
+      GatewayIntentBits.GuildMessages, // 메시지 내용은 받지 않는다 (오프라인 채팅 감지용으로 누가 쳤는지만 본다)
     ],
   });
   const queue = createSerialQueue();
@@ -146,6 +147,13 @@ export function createBot(tracker: Tracker) {
   let heartbeatTimer: NodeJS.Timeout | undefined;
   let lastPurgeAt = 0;
   let initialized = false;
+
+  /** 메시지로 오프라인 기록을 남긴 마지막 시각 (같은 사람은 1분에 한 번만) */
+  const lastMessageEvent = new Map<string, number>();
+  const MESSAGE_EVENT_INTERVAL_MS = 60_000;
+
+  const recordOffline = (userId: string, source: 'voice' | 'message', channelName: string | null, at: Date) =>
+    void enqueue('offline activity', () => tracker.recordOfflineActivity([{ userId, source, channelName }], at));
 
   const isOurGuild = (guildId: string | null | undefined) => guildId === tracker.guildId;
 
@@ -244,6 +252,8 @@ export function createBot(tracker: Tracker) {
 
     if (joined) {
       const name = joined.name;
+      // 온라인이 아닌 상태(오프라인·invisible)로 음성방에 들어왔다
+      if (presenceStatus(newState.member?.presence) === 'offline') recordOffline(userId, 'voice', name, at);
       void enqueue('voice join', async () => {
         await tracker.openVoice(userId, joined.id, name, at);
         await tracker.setMuted(userId, muted, at);
@@ -276,8 +286,25 @@ export function createBot(tracker: Tracker) {
       // 오프라인이 된 순간이 마지막 접속 (온라인 중에는 하트비트가 갱신)
       if (status === 'offline') await tracker.touchLastSeen([userId], at);
     });
+    // 음성방에 있던 채로 오프라인(invisible 포함)이 됐다
+    if (status === 'offline' && prev?.status !== 'offline') {
+      const room = presence.member?.voice.channel;
+      if (room) recordOffline(userId, 'voice', room.name, at);
+    }
     // 게임이 바뀌었고 음성 채널에 있으면 그 방의 종류가 바뀔 수 있다
     if (prev?.gamesKey !== gamesKey) refreshRoom(presence.member?.voice.channel ?? null, at);
+  });
+
+  // ─── 채팅 (온라인 상태가 아닌데 채팅을 친 경우만 기록) ───
+  client.on(Events.MessageCreate, (message) => {
+    if (!isOurGuild(message.guildId) || message.author.bot || message.webhookId) return;
+    if (presenceStatus(message.member?.presence) !== 'offline') return;
+    const at = new Date();
+    const last = lastMessageEvent.get(message.author.id) ?? 0;
+    if (at.getTime() - last < MESSAGE_EVENT_INTERVAL_MS) return;
+    lastMessageEvent.set(message.author.id, at.getTime());
+    const channel = message.channel;
+    recordOffline(message.author.id, 'message', 'name' in channel ? channel.name : null, at);
   });
 
   // ─── 채널 ───

@@ -14,6 +14,7 @@ import type {
   MemberIdle,
   MemberLastVoice,
   MemberListItem,
+  MemberOffUser,
   PairTime,
   PartnerTime,
   VoiceSessionGroup,
@@ -562,5 +563,56 @@ export async function getMembers(guildId: string, show?: string): Promise<Member
     username: r.username,
     displayName: r.display_name,
     avatarUrl: r.avatar_url,
+  }));
+}
+
+/**
+ * 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 멤버 (보관 기간 안 기록, offline_activity_events).
+ * 가장 최근에 잡힌 순이고, 기록이 없는 멤버는 나오지 않는다.
+ */
+export async function getOffUsers(guildId: string, show?: string): Promise<MemberOffUser[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    last_ms: number;
+    last_source: 'voice' | 'message';
+    last_channel: string | null;
+    voice_count: number;
+    message_count: number;
+  }>(sql`
+    select m.user_id, m.username, m.display_name, m.avatar_url,
+      (extract(epoch from last.occurred_at) * 1000)::float8 as last_ms,
+      last.source as last_source, last.channel_name as last_channel,
+      c.voice_count::int as voice_count, c.message_count::int as message_count
+    from members m
+    join lateral (
+      select e.occurred_at, e.source, e.channel_name
+      from offline_activity_events e
+      where e.guild_id = m.guild_id and e.user_id = m.user_id
+      order by e.occurred_at desc
+      limit 1
+    ) last on true
+    join lateral (
+      select count(*) filter (where e.source = 'voice') as voice_count,
+        count(*) filter (where e.source = 'message') as message_count
+      from offline_activity_events e
+      where e.guild_id = m.guild_id and e.user_id = m.user_id
+    ) c on true
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
+    order by last.occurred_at desc
+  `);
+
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    lastAt: new Date(r.last_ms),
+    lastSource: r.last_source,
+    lastChannelName: r.last_channel,
+    voiceCount: r.voice_count,
+    messageCount: r.message_count,
   }));
 }

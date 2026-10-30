@@ -8,6 +8,7 @@ import type {
   MemberIdle,
   MemberLastVoice,
   MemberListItem,
+  MemberOffUser,
   PairTime,
   PartnerTime,
   VoiceSessionGroup,
@@ -20,6 +21,8 @@ export interface DashboardRepository {
   getMemberActivity(range: DateRange): Promise<MemberActivity[]>;
   /** 멤버별 마지막 음성방 퇴장 시각 (보관 기간 안 기록 기준) */
   getLastVoiceExits(): Promise<MemberLastVoice[]>;
+  /** 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 멤버 (최근 순) */
+  getOffUsers(): Promise<MemberOffUser[]>;
   /** 멤버별 최근 FIRST_JOIN_DAYS일 평균 첫 음성방 입장 시각 */
   getAverageFirstJoins(): Promise<MemberAvgJoin[]>;
   /** 멤버별 음성 시간과 그중 잠수(마이크 끈) 시간 */

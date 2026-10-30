@@ -11,8 +11,9 @@ const TABS = [
   { href: '/avg-join', label: '평균 접속 시간대' },
   { href: '/idle', label: '잠수 시간' },
   { href: '/pair', label: '끼리끼리 검색기' },
+  { href: '/off-control', label: '온 오프 컨트롤 유저' },
 ];
-const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle', '/pair'];
+const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle', '/pair', '/off-control'];
 
 /** 상단 탭 메뉴. 멤버 상세는 개요에 속하는 화면으로 본다 */
 export function TabNav() {

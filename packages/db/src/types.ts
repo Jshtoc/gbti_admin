@@ -49,16 +49,17 @@ export interface MemberLastVoice extends MemberRef {
   lastChannelName: string | null;
 }
 
-/** 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 멤버 ("온 오프 컨트롤 유저") */
-export interface MemberOffUser extends MemberRef {
+/**
+ * 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 기록 ("온 오프 컨트롤").
+ * 같은 날·같은 시(KST)에 같은 멤버·같은 종류는 하나로 묶는다.
+ */
+export interface OffControlEntry extends MemberRef {
   username: string;
-  /** 가장 최근에 잡힌 시각 */
-  lastAt: Date;
-  lastSource: 'voice' | 'message';
-  /** 그때의 음성방/채팅 채널 이름 */
-  lastChannelName: string | null;
-  voiceCount: number;
-  messageCount: number;
+  /** KST 날짜 YYYY-MM-DD */
+  day: string;
+  /** KST 시 (0~23) */
+  hour: number;
+  source: 'voice' | 'message';
 }
 
 /** 멤버별 최근 N일 평균 첫 음성방 입장 시각 */

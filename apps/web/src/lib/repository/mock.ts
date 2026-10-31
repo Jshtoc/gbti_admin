@@ -9,7 +9,7 @@ import type {
   MemberAvgJoin,
   MemberIdle,
   MemberLastVoice,
-  MemberOffUser,
+  OffControlEntry,
   MemberRef,
   PartnerTime,
   VoiceSessionGroup,
@@ -373,36 +373,38 @@ export function createMockRepository(): DashboardRepository {
     },
 
 
-    async getOffUsers() {
+    async getOffControlEntries() {
       const now = new Date();
       // 음성: 세션이 시작될 때 온라인 구간이 없었으면 "오프라인으로 입장". 메시지는 목데이터에 없어 몇 명만 가짜로 넣는다
-      const events = new Map<string, MemberOffUser>();
-      const add = (m: MockMember, source: 'voice' | 'message', at: Date, channelName: string) => {
-        const cur = events.get(m.userId) ?? {
-          ...toRef(m),
-          username: m.username,
-          lastAt: at,
-          lastSource: source,
-          lastChannelName: channelName,
-          voiceCount: 0,
-          messageCount: 0,
-        };
-        if (source === 'voice') cur.voiceCount++;
-        else cur.messageCount++;
-        if (at >= cur.lastAt) Object.assign(cur, { lastAt: at, lastSource: source, lastChannelName: channelName });
-        events.set(m.userId, cur);
-      };
+      const found: { m: MockMember; source: 'voice' | 'message'; at: Date }[] = [];
       const counted = new Map(COUNTED.map((m) => [m.userId, m]));
       for (const v of countedVoice) {
         const m = counted.get(v.userId);
         if (!m || v.startedAt > now) continue;
         const online = data.presence.some((p) => p.userId === v.userId && p.startedAt <= v.startedAt && (p.endedAt ?? now) > v.startedAt);
-        if (!online) add(m, 'voice', v.startedAt, v.channelName);
+        if (!online) found.push({ m, source: 'voice', at: v.startedAt });
       }
       COUNTED.filter((_, i) => i % 9 === 4).forEach((m, i) => {
-        add(m, 'message', new Date(now.getTime() - (i + 1) * 3 * HOUR), '일반');
+        found.push({ m, source: 'message', at: new Date(now.getTime() - (i + 1) * 3 * HOUR) });
       });
-      return [...events.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
+
+      // SQL과 같은 규칙: 날짜·시(KST)·멤버·종류별로 하나
+      const KST = 9 * HOUR;
+      const unique = new Map<string, OffControlEntry>();
+      for (const f of found) {
+        const hour = new Date(f.at.getTime() + KST).getUTCHours();
+        const day = kstDayKey(f.at);
+        unique.set(`${day}|${hour}|${f.m.userId}|${f.source}`, {
+          ...toRef(f.m),
+          username: f.m.username,
+          day,
+          hour,
+          source: f.source,
+        });
+      }
+      return [...unique.values()].sort(
+        (a, b) => b.day.localeCompare(a.day) || b.hour - a.hour || a.displayName.localeCompare(b.displayName, 'ko'),
+      );
     },
 
     async getAverageFirstJoins() {

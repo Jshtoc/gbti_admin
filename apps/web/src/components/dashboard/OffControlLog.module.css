@@ -1,0 +1,117 @@
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.dayHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dayName {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dayCount {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.num {
+  font-family: var(--font-num);
+  color: var(--fg);
+}
+
+.hours {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hourRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+}
+
+.hour {
+  flex-shrink: 0;
+  width: 44px;
+  padding-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hour .num {
+  font-size: 16px;
+}
+
+.members {
+  list-style: none;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg3);
+  padding: 4px 12px 4px 4px;
+  transition: border-color 0.3s ease;
+}
+
+.chip:hover {
+  border-color: var(--border-hover);
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.source[data-source='voice'] {
+  border-color: rgba(0, 201, 107, 0.4);
+  color: var(--good2);
+}
+
+@media (max-width: 640px) {
+  .hourRow {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .hour {
+    width: 36px;
+  }
+}

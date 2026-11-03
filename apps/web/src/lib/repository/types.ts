@@ -3,6 +3,7 @@ import type {
   DailyVoice,
   DateRange,
   GameTime,
+  MemberAccount,
   MemberActivity,
   MemberAvgJoin,
   MemberIdle,
@@ -35,4 +36,6 @@ export interface DashboardRepository {
   getGameTimes(userId: string, range: DateRange): Promise<GameTime[]>;
   /** 음성 세션을 방제목별로 묶은 것 (조회 기간 안, 최근 순) */
   getVoiceSessionGroups(userId: string, range: DateRange, limit?: number): Promise<VoiceSessionGroup[]>;
+  /** 멤버의 게임 계정 정보 (롤·스팀·배그 ID) */
+  getMemberAccount(userId: string): Promise<MemberAccount>;
 }

@@ -318,6 +318,10 @@ export function createMockRepository(): DashboardRepository {
     countedVoice.filter((v) => overlaps(v, range, now));
 
   return {
+    async getMemberAccount() {
+      return { lolId: '', steamId: '', pubgId: '' };
+    },
+
     async getMembers() {
       return COUNTED.map((member) => ({ ...toRef(member), username: member.username })).sort((a, b) =>
         a.displayName.localeCompare(b.displayName, 'ko'),

@@ -18,6 +18,7 @@ export function createDbRepository(guildId: string, showUserId?: string): Dashbo
     getPartners: (userId, range, limit) => queries.getPartners(guildId, userId, range, limit, showUserId),
     getDailyVoice: (range, userId) => queries.getDailyVoice(guildId, range, userId),
     getGameTimes: (userId, range) => queries.getGameTimes(guildId, userId, range),
+    getMemberAccount: (userId) => queries.getMemberAccount(guildId, userId),
     getVoiceSessionGroups: (userId, range, limit) =>
       queries.getVoiceSessionGroups(guildId, userId, range, limit),
   };

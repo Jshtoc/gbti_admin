@@ -9,6 +9,8 @@ import type {
   DailyVoice,
   DateRange,
   GameTime,
+  MemberAccount,
+  MemberAccountRow,
   MemberActivity,
   MemberAvgJoin,
   MemberIdle,
@@ -599,4 +601,57 @@ export async function getOffControlEntries(guildId: string, show?: string): Prom
     hour: r.hour,
     source: r.source,
   }));
+}
+
+/** 멤버의 게임 계정 정보 (member_accounts). 기록이 없으면 전부 빈 문자열 */
+export async function getMemberAccount(guildId: string, userId: string): Promise<MemberAccount> {
+  const rows = await getDb().execute<{ lol_id: string; steam_id: string; pubg_id: string }>(sql`
+    select lol_id, steam_id, pubg_id
+    from member_accounts
+    where guild_id = ${guildId} and user_id = ${userId}
+  `);
+  const r = rows[0];
+  return { lolId: r?.lol_id ?? '', steamId: r?.steam_id ?? '', pubgId: r?.pubg_id ?? '' };
+}
+
+/** 현재 서버의 사람 멤버와 계정 정보 (통계 제외 멤버는 뺌, show 멤버는 포함). TXT 내보내기·가져오기용 */
+export async function getAllMemberAccounts(guildId: string, show?: string): Promise<MemberAccountRow[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    display_name: string;
+    lol_id: string | null;
+    steam_id: string | null;
+    pubg_id: string | null;
+  }>(sql`
+    select m.user_id, m.display_name, a.lol_id, a.steam_id, a.pubg_id
+    from members m
+    left join member_accounts a on a.guild_id = m.guild_id and a.user_id = m.user_id
+    where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
+    order by m.display_name
+  `);
+  return rows.map((r) => ({
+    userId: r.user_id,
+    displayName: r.display_name,
+    lolId: r.lol_id ?? '',
+    steamId: r.steam_id ?? '',
+    pubgId: r.pubg_id ?? '',
+  }));
+}
+
+/** 계정 정보를 멤버별로 덮어쓴다 (없으면 만든다). 한 트랜잭션이라 중간에 실패하면 전부 취소 */
+export async function upsertMemberAccounts(
+  guildId: string,
+  items: { userId: string; lolId: string; steamId: string; pubgId: string }[],
+): Promise<void> {
+  if (items.length === 0) return;
+  await getDb().transaction(async (tx) => {
+    for (const it of items) {
+      await tx.execute(sql`
+        insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, updated_at)
+        values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, now())
+        on conflict (guild_id, user_id) do update
+          set lol_id = excluded.lol_id, steam_id = excluded.steam_id, pubg_id = excluded.pubg_id, updated_at = now()
+      `);
+    }
+  });
 }

@@ -2,12 +2,14 @@ import Link from 'next/link';
 
 import { BarList } from '@/components/dashboard/BarList';
 import { LeastActiveList } from '@/components/dashboard/LeastActiveList';
+import { MemberInfoUpdate } from '@/components/dashboard/MemberInfoUpdate';
 import { MemberTable } from '@/components/dashboard/MemberTable';
 import { VoiceSessionList } from '@/components/dashboard/VoiceSessionList';
 import { Avatar } from '@/components/ui/Avatar';
 import { Reveal } from '@/components/ui/Reveal';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatTile } from '@/components/ui/StatTile';
+import { getRole } from '@/lib/auth/server';
 import { formatDuration, toHours } from '@/lib/format';
 import { leastActive, sortMembers, type MemberSortKey } from '@/lib/memberSort';
 import { overviewHref, periodHref, type OverviewQuery } from '@/lib/overviewQuery';
@@ -32,6 +34,8 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   const repo = await getRepository();
 
   const members = await repo.getMemberActivity(range);
+  // 멤버 정보 TXT 업데이트는 제한 계정(viewer)에서만, DB 모드일 때만
+  const canEditInfo = process.env.DATA_SOURCE === 'db' && (await getRole()) === 'viewer';
 
   // 존재하는 멤버만 선택으로 인정한다 (잘못된 값은 전체 보기)
   const selected = members.find((m) => m.userId === memberId);
@@ -199,7 +203,12 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
           eyebrow="Members"
           title="멤버별 활동"
           id="members"
-          aside={`${members.length}명 · 총 ${formatDuration(totalVoice)}`}
+          aside={
+            <>
+              {canEditInfo && <MemberInfoUpdate />}
+              {`${members.length}명 · 총 ${formatDuration(totalVoice)}`}
+            </>
+          }
         />
         <Reveal>
           <MemberTable members={sortMembers(members, sort)} query={query} />

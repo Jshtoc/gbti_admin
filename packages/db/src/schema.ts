@@ -220,3 +220,17 @@ export const statsExcludedMembers = pgTable(
   },
   (t) => [primaryKey({ columns: [t.guildId, t.userId] })],
 );
+
+/** 멤버별 게임 계정 정보 (롤·스팀·배그 ID). 멤버 상세 페이지에 표시하고 복사 버튼으로 쓴다. */
+export const memberAccounts = pgTable(
+  'member_accounts',
+  {
+    guildId: text('guild_id').notNull(),
+    userId: text('user_id').notNull(),
+    lolId: text('lol_id').notNull().default(''),
+    steamId: text('steam_id').notNull().default(''),
+    pubgId: text('pubg_id').notNull().default(''),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.userId] })],
+);

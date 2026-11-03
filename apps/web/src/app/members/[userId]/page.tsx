@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { AccountCard } from '@/components/dashboard/AccountCard';
 import { MemberSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { MemberContent } from '@/components/dashboard/MemberContent';
 import { Avatar } from '@/components/ui/Avatar';
@@ -28,7 +29,9 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
   const period = parsePeriod(query);
 
   // 상단에 필요한 정보만 가벼운 목록에서 (무거운 집계는 아래 Suspense 안에서)
-  const member = (await (await getRepository()).getMembers()).find((m) => m.userId === userId);
+  const repo = await getRepository();
+  const [members, account] = await Promise.all([repo.getMembers(), repo.getMemberAccount(userId)]);
+  const member = members.find((m) => m.userId === userId);
   if (!member) notFound();
 
   return (
@@ -49,6 +52,8 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
         }
         aside={<PeriodControl period={period} basePath={`/members/${userId}`} />}
       />
+
+      <AccountCard displayName={member.displayName} {...account} />
 
       <Suspense key={`${period.from}|${period.to}|${period.night ? 'n' : 'a'}`} fallback={<MemberSkeleton />}>
         <MemberContent userId={userId} period={period} />

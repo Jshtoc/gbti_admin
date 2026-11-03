@@ -111,3 +111,16 @@ export interface VoiceSessionGroup {
   /** 진행 중인 세션이 있으면 true */
   live: boolean;
 }
+
+/** 멤버의 게임 계정 정보 (없으면 빈 문자열) */
+export interface MemberAccount {
+  lolId: string;
+  steamId: string;
+  pubgId: string;
+}
+
+/** TXT 내보내기·가져오기용: 현재 서버 멤버 + 계정 정보 */
+export interface MemberAccountRow extends MemberAccount {
+  userId: string;
+  displayName: string;
+}

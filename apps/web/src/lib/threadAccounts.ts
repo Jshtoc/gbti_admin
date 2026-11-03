@@ -91,6 +91,20 @@ export function matchKey(name: string): string {
     .toLowerCase();
 }
 
+/**
+ * 글에 적은 닉네임이 서버 닉네임과 달라서 자동으로 못 맞추는 경우의 별칭 (글의 닉네임 → 서버 닉네임).
+ * 키·값 모두 matchKey 형태(공백 없음, 소문자)로 쓴다.
+ */
+const NICK_ALIASES: Record<string, string> = {
+  금쪽92: '금쪽이92',
+};
+
+/** 글의 닉네임을 비교 키로 바꾼다 (별칭 적용) */
+export function postKey(nick: string): string {
+  const key = matchKey(nick);
+  return NICK_ALIASES[key] ?? key;
+}
+
 /** 서버 닉네임 끝의 숫자(출생연도)를 뺀 비교 키. 글에는 숫자 없이 적는 경우가 많다 */
 export function baseKey(name: string): string {
   return matchKey(name).replace(/\d+$/, '');

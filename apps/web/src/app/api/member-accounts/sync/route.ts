@@ -1,6 +1,6 @@
 import { getAllMemberAccounts, mergeMemberAccounts } from '@gbti/db';
 
-import { baseKey, matchKey, readThreadPosts, ThreadReadError } from '@/lib/threadAccounts';
+import { baseKey, matchKey, postKey, readThreadPosts, ThreadReadError } from '@/lib/threadAccounts';
 import { guardViewerDb, json } from '@/lib/viewerApi';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,8 @@ export async function POST() {
   const ambiguous: string[] = [];
   for (const p of posts) {
     // 정확히 같은 이름 우선, 없으면 서버 닉네임 끝 숫자(출생연도)를 뺀 이름과 비교
-    const ids = exact.get(matchKey(p.nick)) ?? byBase.get(matchKey(p.nick));
+    const key = postKey(p.nick);
+    const ids = exact.get(key) ?? byBase.get(key);
     const userId = ids?.[0];
     if (!ids || !userId) unmatched.push(p.nick);
     else if (ids.length > 1 || updates.has(userId)) ambiguous.push(p.nick);

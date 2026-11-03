@@ -56,5 +56,13 @@ export async function POST() {
   }
 
   await mergeMemberAccounts(g.guildId, [...updates.values()]);
-  return json({ posts: posts.length, updated: updates.size, unmatched, ambiguous });
+
+  // 반영 후에도 ID를 하나도 입력하지 않은 멤버 (닉네임의 [] 태그는 뺀다)
+  const after = await getAllMemberAccounts(g.guildId, process.env.VIEWER_SHOW_USER_ID);
+  const missing = after
+    .filter((m) => !m.lolId && !m.steamId && !m.pubgId && !m.robloxId && !m.overwatchId)
+    .map((m) => m.displayName.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() || m.displayName)
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+
+  return json({ posts: posts.length, updated: updates.size, unmatched, ambiguous, missing, total: after.length });
 }

@@ -605,13 +605,25 @@ export async function getOffControlEntries(guildId: string, show?: string): Prom
 
 /** 멤버의 게임 계정 정보 (member_accounts). 기록이 없으면 전부 빈 문자열 */
 export async function getMemberAccount(guildId: string, userId: string): Promise<MemberAccount> {
-  const rows = await getDb().execute<{ lol_id: string; steam_id: string; pubg_id: string }>(sql`
-    select lol_id, steam_id, pubg_id
+  const rows = await getDb().execute<{
+    lol_id: string;
+    steam_id: string;
+    pubg_id: string;
+    roblox_id: string;
+    overwatch_id: string;
+  }>(sql`
+    select lol_id, steam_id, pubg_id, roblox_id, overwatch_id
     from member_accounts
     where guild_id = ${guildId} and user_id = ${userId}
   `);
   const r = rows[0];
-  return { lolId: r?.lol_id ?? '', steamId: r?.steam_id ?? '', pubgId: r?.pubg_id ?? '' };
+  return {
+    lolId: r?.lol_id ?? '',
+    steamId: r?.steam_id ?? '',
+    pubgId: r?.pubg_id ?? '',
+    robloxId: r?.roblox_id ?? '',
+    overwatchId: r?.overwatch_id ?? '',
+  };
 }
 
 /** 현재 서버의 사람 멤버와 계정 정보 (통계 제외 멤버는 뺌, show 멤버는 포함). TXT 내보내기·가져오기용 */
@@ -622,8 +634,10 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
     lol_id: string | null;
     steam_id: string | null;
     pubg_id: string | null;
+    roblox_id: string | null;
+    overwatch_id: string | null;
   }>(sql`
-    select m.user_id, m.display_name, a.lol_id, a.steam_id, a.pubg_id
+    select m.user_id, m.display_name, a.lol_id, a.steam_id, a.pubg_id, a.roblox_id, a.overwatch_id
     from members m
     left join member_accounts a on a.guild_id = m.guild_id and a.user_id = m.user_id
     where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
@@ -635,6 +649,8 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
     lolId: r.lol_id ?? '',
     steamId: r.steam_id ?? '',
     pubgId: r.pubg_id ?? '',
+    robloxId: r.roblox_id ?? '',
+    overwatchId: r.overwatch_id ?? '',
   }));
 }
 
@@ -644,18 +660,20 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
  */
 export async function mergeMemberAccounts(
   guildId: string,
-  items: { userId: string; lolId: string; steamId: string; pubgId: string }[],
+  items: { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string; overwatchId: string }[],
 ): Promise<void> {
   if (items.length === 0) return;
   await getDb().transaction(async (tx) => {
     for (const it of items) {
       await tx.execute(sql`
-        insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, updated_at)
-        values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, now())
+        insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, roblox_id, overwatch_id, updated_at)
+        values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, ${it.robloxId}, ${it.overwatchId}, now())
         on conflict (guild_id, user_id) do update
           set lol_id = coalesce(nullif(excluded.lol_id, ''), member_accounts.lol_id),
               steam_id = coalesce(nullif(excluded.steam_id, ''), member_accounts.steam_id),
               pubg_id = coalesce(nullif(excluded.pubg_id, ''), member_accounts.pubg_id),
+              roblox_id = coalesce(nullif(excluded.roblox_id, ''), member_accounts.roblox_id),
+              overwatch_id = coalesce(nullif(excluded.overwatch_id, ''), member_accounts.overwatch_id),
               updated_at = now()
       `);
     }

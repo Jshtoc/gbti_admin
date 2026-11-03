@@ -17,6 +17,8 @@ export async function GET() {
       lolId: r.lolId,
       steamId: r.steamId,
       pubgId: r.pubgId,
+      robloxId: r.robloxId,
+      overwatchId: r.overwatchId,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 

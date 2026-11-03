@@ -230,6 +230,8 @@ export const memberAccounts = pgTable(
     lolId: text('lol_id').notNull().default(''),
     steamId: text('steam_id').notNull().default(''),
     pubgId: text('pubg_id').notNull().default(''),
+    robloxId: text('roblox_id').notNull().default(''),
+    overwatchId: text('overwatch_id').notNull().default(''),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.guildId, t.userId] })],

@@ -33,7 +33,7 @@ export async function POST() {
     byBase.set(baseKey(m.displayName), [...(byBase.get(baseKey(m.displayName)) ?? []), m.userId]);
   }
 
-  const updates = new Map<string, { userId: string; lolId: string; steamId: string; pubgId: string }>();
+  const updates = new Map<string, { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string; overwatchId: string }>();
   const unmatched: string[] = [];
   const ambiguous: string[] = [];
   for (const p of posts) {
@@ -43,7 +43,16 @@ export async function POST() {
     const userId = ids?.[0];
     if (!ids || !userId) unmatched.push(p.nick);
     else if (ids.length > 1 || updates.has(userId)) ambiguous.push(p.nick);
-    else updates.set(userId, { userId, lolId: p.lolId, steamId: p.steamId, pubgId: p.pubgId });
+    else {
+      updates.set(userId, {
+        userId,
+        lolId: p.lolId,
+        steamId: p.steamId,
+        pubgId: p.pubgId,
+        robloxId: p.robloxId,
+        overwatchId: p.overwatchId,
+      });
+    }
   }
 
   await mergeMemberAccounts(g.guildId, [...updates.values()]);

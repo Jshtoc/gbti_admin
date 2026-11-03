@@ -117,6 +117,8 @@ export interface MemberAccount {
   lolId: string;
   steamId: string;
   pubgId: string;
+  robloxId: string;
+  overwatchId: string;
 }
 
 /** TXT 내보내기·가져오기용: 현재 서버 멤버 + 계정 정보 */

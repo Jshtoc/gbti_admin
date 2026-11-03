@@ -10,6 +10,8 @@ interface AccountCardProps {
   lolId: string;
   steamId: string;
   pubgId: string;
+  robloxId: string;
+  overwatchId: string;
 }
 
 const KICK_MESSAGE = '친구삭제 부탁드립니다.\n몰랐습니다 깜박했어요 안됩니다.';
@@ -26,12 +28,12 @@ async function writeClipboard(text: string): Promise<boolean> {
 }
 
 /** 멤버의 게임 계정 정보 + 복사 버튼 (계정정보 복사 / 퇴출 복사) */
-export function AccountCard({ displayName, lolId, steamId, pubgId }: AccountCardProps) {
+export function AccountCard({ displayName, lolId, steamId, pubgId, robloxId, overwatchId }: AccountCardProps) {
   const [copied, setCopied] = useState<Copied>(null);
   const name = displayName.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
 
   const idLines = `롤 ID : ${lolId}\n스팀 ID : ${steamId}\n배그 ID : ${pubgId}`;
-  const accountText = `이름 : ${name}\n${idLines}`;
+  const accountText = `이름 : ${name}\n${idLines}\n로블록스 ID : ${robloxId}\n오버워치 ID : ${overwatchId}`;
   const kickText = `${idLines}\n\n${KICK_MESSAGE}`;
 
   const copy = async (kind: Exclude<Copied, null>, text: string) => {
@@ -44,6 +46,8 @@ export function AccountCard({ displayName, lolId, steamId, pubgId }: AccountCard
     ['롤 ID', lolId],
     ['스팀 ID', steamId],
     ['배그 ID', pubgId],
+    ['로블록스 ID', robloxId],
+    ['오버워치 ID', overwatchId],
   ];
 
   return (

@@ -1,7 +1,7 @@
 import 'server-only';
 
 // "잡담금" 스레드에 멤버들이 올린 계정 정보 글을 읽어 멤버 계정 정보로 바꾼다.
-// 글 양식: 닉네임 : / 스팀 : / 배그 : / 롤 : / 로블록스 :  (한 줄에 하나)
+// 글 양식: 닉네임 : / 스팀 : / 배그 : / 롤 : / 로블록스 : / 오버워치 :  (한 줄에 하나)
 // 메시지 내용은 DB에 저장하지 않고, 읽어서 추출한 ID만 쓴다.
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -13,6 +13,8 @@ export interface ThreadPost {
   lolId: string;
   steamId: string;
   pubgId: string;
+  robloxId: string;
+  overwatchId: string;
 }
 
 export class ThreadReadError extends Error {}
@@ -35,7 +37,7 @@ function cleanValue(value: string | undefined): string {
 function parsePost(content: string): ThreadPost | null {
   const fields: Record<string, string> = {};
   for (const line of content.split(/\r?\n/)) {
-    const m = line.match(/^\s*(닉네임|스팀|배그|롤)\s*[:：]\s*(.*)$/);
+    const m = line.match(/^\s*(닉네임|스팀|배그|롤|로블록스|오버워치)\s*[:：]\s*(.*)$/);
     if (m?.[1]) fields[m[1]] = m[2] ?? '';
   }
   const nick = cleanValue(fields['닉네임']);
@@ -45,6 +47,8 @@ function parsePost(content: string): ThreadPost | null {
     lolId: cleanValue(fields['롤']),
     steamId: cleanValue(fields['스팀']),
     pubgId: cleanValue(fields['배그']),
+    robloxId: cleanValue(fields['로블록스']),
+    overwatchId: cleanValue(fields['오버워치']),
   };
 }
 

@@ -42,7 +42,7 @@ export async function POST() {
   const findCurrent = index(members);
   const findDeparted = index(departed);
 
-  const updates = new Map<string, { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string; overwatchId: string }>();
+  const updates = new Map<string, { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string }>();
   const unmatched: string[] = [];
   const ambiguous: string[] = [];
   for (const p of posts) {
@@ -58,7 +58,6 @@ export async function POST() {
         steamId: p.steamId,
         pubgId: p.pubgId,
         robloxId: p.robloxId,
-        overwatchId: p.overwatchId,
       });
     }
   }
@@ -68,7 +67,7 @@ export async function POST() {
   // 반영 후에도 ID를 하나도 입력하지 않은 멤버 (닉네임의 [] 태그는 뺀다)
   const after = await getAllMemberAccounts(g.guildId, process.env.VIEWER_SHOW_USER_ID);
   const missing = after
-    .filter((m) => !m.lolId && !m.steamId && !m.pubgId && !m.robloxId && !m.overwatchId)
+    .filter((m) => !m.lolId && !m.steamId && !m.pubgId && !m.robloxId)
     .map((m) => m.displayName.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() || m.displayName)
     .sort((a, b) => a.localeCompare(b, 'ko'));
 

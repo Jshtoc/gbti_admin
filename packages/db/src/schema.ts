@@ -231,6 +231,7 @@ export const memberAccounts = pgTable(
     steamId: text('steam_id').notNull().default(''),
     pubgId: text('pubg_id').notNull().default(''),
     robloxId: text('roblox_id').notNull().default(''),
+    /** 더 이상 쓰지 않는다(2026-11-03 사용자 요청으로 오버워치 항목 제거). 기존 값 보존을 위해 열은 남겨 둔다 */
     overwatchId: text('overwatch_id').notNull().default(''),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },

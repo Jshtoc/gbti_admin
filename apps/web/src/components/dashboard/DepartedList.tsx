@@ -95,7 +95,6 @@ export function DepartedList({ rows, nowMs }: DepartedListProps) {
                   steamId={m.steamId}
                   pubgId={m.pubgId}
                   robloxId={m.robloxId}
-                  overwatchId={m.overwatchId}
                 />
               </li>
             );

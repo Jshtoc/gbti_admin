@@ -324,7 +324,7 @@ export function createMockRepository(): DashboardRepository {
     },
 
     async getMemberAccount() {
-      return { lolId: '', steamId: '', pubgId: '', robloxId: '', overwatchId: '' };
+      return { lolId: '', steamId: '', pubgId: '', robloxId: '' };
     },
 
     async getMembers() {

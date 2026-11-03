@@ -611,9 +611,8 @@ export async function getMemberAccount(guildId: string, userId: string): Promise
     steam_id: string;
     pubg_id: string;
     roblox_id: string;
-    overwatch_id: string;
   }>(sql`
-    select lol_id, steam_id, pubg_id, roblox_id, overwatch_id
+    select lol_id, steam_id, pubg_id, roblox_id
     from member_accounts
     where guild_id = ${guildId} and user_id = ${userId}
   `);
@@ -623,7 +622,6 @@ export async function getMemberAccount(guildId: string, userId: string): Promise
     steamId: r?.steam_id ?? '',
     pubgId: r?.pubg_id ?? '',
     robloxId: r?.roblox_id ?? '',
-    overwatchId: r?.overwatch_id ?? '',
   };
 }
 
@@ -636,9 +634,8 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
     steam_id: string | null;
     pubg_id: string | null;
     roblox_id: string | null;
-    overwatch_id: string | null;
   }>(sql`
-    select m.user_id, m.display_name, a.lol_id, a.steam_id, a.pubg_id, a.roblox_id, a.overwatch_id
+    select m.user_id, m.display_name, a.lol_id, a.steam_id, a.pubg_id, a.roblox_id
     from members m
     left join member_accounts a on a.guild_id = m.guild_id and a.user_id = m.user_id
     where m.guild_id = ${guildId} and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
@@ -651,7 +648,6 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
     steamId: r.steam_id ?? '',
     pubgId: r.pubg_id ?? '',
     robloxId: r.roblox_id ?? '',
-    overwatchId: r.overwatch_id ?? '',
   }));
 }
 
@@ -661,20 +657,19 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
  */
 export async function mergeMemberAccounts(
   guildId: string,
-  items: { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string; overwatchId: string }[],
+  items: { userId: string; lolId: string; steamId: string; pubgId: string; robloxId: string }[],
 ): Promise<void> {
   if (items.length === 0) return;
   await getDb().transaction(async (tx) => {
     for (const it of items) {
       await tx.execute(sql`
-        insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, roblox_id, overwatch_id, updated_at)
-        values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, ${it.robloxId}, ${it.overwatchId}, now())
+        insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, roblox_id, updated_at)
+        values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, ${it.robloxId}, now())
         on conflict (guild_id, user_id) do update
           set lol_id = coalesce(nullif(excluded.lol_id, ''), member_accounts.lol_id),
               steam_id = coalesce(nullif(excluded.steam_id, ''), member_accounts.steam_id),
               pubg_id = coalesce(nullif(excluded.pubg_id, ''), member_accounts.pubg_id),
               roblox_id = coalesce(nullif(excluded.roblox_id, ''), member_accounts.roblox_id),
-              overwatch_id = coalesce(nullif(excluded.overwatch_id, ''), member_accounts.overwatch_id),
               updated_at = now()
       `);
     }
@@ -696,10 +691,9 @@ export async function getDepartedMembers(guildId: string): Promise<DepartedMembe
     steam_id: string | null;
     pubg_id: string | null;
     roblox_id: string | null;
-    overwatch_id: string | null;
   }>(sql`
     select m.user_id, m.username, m.display_name, m.avatar_url, m.left_at,
-           a.lol_id, a.steam_id, a.pubg_id, a.roblox_id, a.overwatch_id
+           a.lol_id, a.steam_id, a.pubg_id, a.roblox_id
     from members m
     left join member_accounts a on a.guild_id = m.guild_id and a.user_id = m.user_id
     where m.guild_id = ${guildId} and m.left_at is not null and not m.is_bot
@@ -715,6 +709,5 @@ export async function getDepartedMembers(guildId: string): Promise<DepartedMembe
     steamId: r.steam_id ?? '',
     pubgId: r.pubg_id ?? '',
     robloxId: r.roblox_id ?? '',
-    overwatchId: r.overwatch_id ?? '',
   }));
 }

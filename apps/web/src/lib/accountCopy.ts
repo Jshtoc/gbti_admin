@@ -5,7 +5,6 @@ export interface AccountIds {
   steamId: string;
   pubgId: string;
   robloxId: string;
-  overwatchId: string;
 }
 
 export const KICK_MESSAGE = '친구삭제 부탁드립니다.\n몰랐습니다 깜박했어요 안됩니다.';
@@ -22,7 +21,6 @@ export function accountRows(a: AccountIds): [string, string][] {
     ['스팀 ID', a.steamId],
     ['배그 ID', a.pubgId],
     ['로블록스 ID', a.robloxId],
-    ['오버워치 ID', a.overwatchId],
   ];
 }
 

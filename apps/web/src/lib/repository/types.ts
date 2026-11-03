@@ -39,6 +39,6 @@ export interface DashboardRepository {
   getVoiceSessionGroups(userId: string, range: DateRange, limit?: number): Promise<VoiceSessionGroup[]>;
   /** 서버를 나간 멤버와 계정 정보 (최근에 나간 순) */
   getDepartedMembers(): Promise<DepartedMember[]>;
-  /** 멤버의 게임 계정 정보 (롤·스팀·배그·로블록스·오버워치 ID) */
+  /** 멤버의 게임 계정 정보 (롤·스팀·배그·로블록스 ID) */
   getMemberAccount(userId: string): Promise<MemberAccount>;
 }

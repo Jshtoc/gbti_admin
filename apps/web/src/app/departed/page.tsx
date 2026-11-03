@@ -22,7 +22,6 @@ export default async function DepartedPage() {
     steamId: m.steamId,
     pubgId: m.pubgId,
     robloxId: m.robloxId,
-    overwatchId: m.overwatchId,
   }));
 
   return (

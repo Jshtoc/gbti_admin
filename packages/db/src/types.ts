@@ -126,3 +126,13 @@ export interface MemberAccountRow extends MemberAccount {
   userId: string;
   displayName: string;
 }
+
+/** 서버를 나간 멤버 + 계정 정보 (탈퇴 유저 목록) */
+export interface DepartedMember extends MemberAccount {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** 서버를 나간 시각 (봇이 기록한 members.left_at) */
+  leftAt: Date;
+}

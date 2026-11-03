@@ -8,6 +8,8 @@ import styles from './MemberInfoUpdate.module.css';
 interface SyncResult {
   posts: number;
   updated: number;
+  /** 반영한 사람 중 서버를 나간 멤버 수 */
+  departedUpdated: number;
   unmatched: string[];
   ambiguous: string[];
   /** 업데이트 후에도 ID를 하나도 입력하지 않은 멤버 */
@@ -70,6 +72,7 @@ export function MemberInfoUpdate() {
           <div className={styles.result}>
             <p>
               글 {status.result.posts}개 중 {status.result.updated}명 반영했습니다.
+              {status.result.departedUpdated > 0 && ` (탈퇴 유저 ${status.result.departedUpdated}명 포함)`}
             </p>
             {status.result.unmatched.length > 0 && (
               <p className={styles.warn}>멤버를 찾지 못함: {status.result.unmatched.join(', ')}</p>

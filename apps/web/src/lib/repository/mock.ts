@@ -318,6 +318,11 @@ export function createMockRepository(): DashboardRepository {
     countedVoice.filter((v) => overlaps(v, range, now));
 
   return {
+    async getDepartedMembers() {
+      // 목데이터에는 서버를 나간 멤버 기록이 없다
+      return [];
+    },
+
     async getMemberAccount() {
       return { lolId: '', steamId: '', pubgId: '', robloxId: '', overwatchId: '' };
     },

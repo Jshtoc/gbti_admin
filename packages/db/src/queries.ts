@@ -8,6 +8,7 @@ import type {
   CoPlayPair,
   DailyVoice,
   DateRange,
+  DepartedMember,
   GameTime,
   MemberAccount,
   MemberAccountRow,
@@ -678,4 +679,42 @@ export async function mergeMemberAccounts(
       `);
     }
   });
+}
+
+/**
+ * 서버를 나간 사람 멤버(members.left_at 기록)와 계정 정보, 최근에 나간 순.
+ * 다시 들어오면 봇이 left_at을 비우므로 목록에서 빠진다. 게스트·부계정도 나간 기록이라 포함한다.
+ */
+export async function getDepartedMembers(guildId: string): Promise<DepartedMember[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    left_at: Date | string;
+    lol_id: string | null;
+    steam_id: string | null;
+    pubg_id: string | null;
+    roblox_id: string | null;
+    overwatch_id: string | null;
+  }>(sql`
+    select m.user_id, m.username, m.display_name, m.avatar_url, m.left_at,
+           a.lol_id, a.steam_id, a.pubg_id, a.roblox_id, a.overwatch_id
+    from members m
+    left join member_accounts a on a.guild_id = m.guild_id and a.user_id = m.user_id
+    where m.guild_id = ${guildId} and m.left_at is not null and not m.is_bot
+    order by m.left_at desc, m.display_name
+  `);
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    leftAt: new Date(r.left_at),
+    lolId: r.lol_id ?? '',
+    steamId: r.steam_id ?? '',
+    pubgId: r.pubg_id ?? '',
+    robloxId: r.roblox_id ?? '',
+    overwatchId: r.overwatch_id ?? '',
+  }));
 }

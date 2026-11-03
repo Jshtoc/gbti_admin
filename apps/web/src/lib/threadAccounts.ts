@@ -18,6 +18,9 @@ export interface ThreadPost {
   robloxId: string;
 }
 
+/** 예시로 올린 글의 닉네임은 읽지 않고 결과에서도 뺀다 (matchKey 형태: 공백 없음, 소문자) */
+const IGNORED_NICKS = new Set(['홍길동93']);
+
 export class ThreadReadError extends Error {}
 
 async function discord<T>(token: string, path: string, source: string): Promise<T> {
@@ -107,7 +110,8 @@ export async function readThreadPosts(token: string, guildId: string): Promise<T
   const latest = new Map<string, ThreadPost>();
   for (const content of contents) {
     const post = parsePost(content);
-    if (post) latest.set(matchKey(post.nick), post); // 같은 닉네임이 다시 올리면 나중 글로
+    if (!post || IGNORED_NICKS.has(matchKey(post.nick))) continue;
+    latest.set(matchKey(post.nick), post); // 같은 닉네임이 다시 올리면 나중 글로
   }
   return [...latest.values()];
 }

@@ -638,8 +638,11 @@ export async function getAllMemberAccounts(guildId: string, show?: string): Prom
   }));
 }
 
-/** 계정 정보를 멤버별로 덮어쓴다 (없으면 만든다). 한 트랜잭션이라 중간에 실패하면 전부 취소 */
-export async function upsertMemberAccounts(
+/**
+ * 계정 정보를 멤버별로 반영한다 (없으면 만든다). 비어 있는 값은 기존 값을 그대로 둔다.
+ * 한 트랜잭션이라 중간에 실패하면 전부 취소
+ */
+export async function mergeMemberAccounts(
   guildId: string,
   items: { userId: string; lolId: string; steamId: string; pubgId: string }[],
 ): Promise<void> {
@@ -650,7 +653,10 @@ export async function upsertMemberAccounts(
         insert into member_accounts (guild_id, user_id, lol_id, steam_id, pubg_id, updated_at)
         values (${guildId}, ${it.userId}, ${it.lolId}, ${it.steamId}, ${it.pubgId}, now())
         on conflict (guild_id, user_id) do update
-          set lol_id = excluded.lol_id, steam_id = excluded.steam_id, pubg_id = excluded.pubg_id, updated_at = now()
+          set lol_id = coalesce(nullif(excluded.lol_id, ''), member_accounts.lol_id),
+              steam_id = coalesce(nullif(excluded.steam_id, ''), member_accounts.steam_id),
+              pubg_id = coalesce(nullif(excluded.pubg_id, ''), member_accounts.pubg_id),
+              updated_at = now()
       `);
     }
   });

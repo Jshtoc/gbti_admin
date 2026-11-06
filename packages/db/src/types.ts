@@ -49,6 +49,16 @@ export interface MemberLastVoice extends MemberRef {
   lastChannelName: string | null;
 }
 
+/** 지금 디스코드 온라인(online/idle/dnd)인데 음성방에 없는 멤버 */
+export interface OnlineOutsideVoice extends MemberRef {
+  username: string;
+  status: 'online' | 'idle' | 'dnd';
+  /** 이 온라인 상태가 시작된 시각 */
+  since: Date;
+  /** 지금 하는 게임 (여러 개면 쉼표로 이은 문자열). 없으면 null */
+  game: string | null;
+}
+
 /**
  * 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 기록 ("온 오프 컨트롤").
  * 같은 날·같은 시(KST)에 같은 멤버·같은 종류는 하나로 묶는다.

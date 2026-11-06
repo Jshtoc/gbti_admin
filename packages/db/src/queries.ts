@@ -18,6 +18,7 @@ import type {
   MemberLastVoice,
   MemberListItem,
   OffControlEntry,
+  OnlineOutsideVoice,
   PairTime,
   PartnerTime,
   VoiceSessionGroup,
@@ -499,6 +500,47 @@ export async function getLastVoiceExits(guildId: string, show?: string): Promise
     lastLeftAt: r.left_ms === null ? null : new Date(r.left_ms),
     inVoice: r.in_voice === true,
     lastChannelName: r.channel_name,
+  }));
+}
+
+/**
+ * 지금 디스코드 온라인(online/idle/dnd)인데 음성방에 없는 멤버. 진행 중인 온라인 구간이 있고
+ * 진행 중인 음성 세션이 없는 현재 멤버 (음성방생성 같은 대기 채널도 음성방으로 본다).
+ * 온라인 상태 → 이름 순.
+ */
+export async function getOnlineOutsideVoice(guildId: string, show?: string): Promise<OnlineOutsideVoice[]> {
+  const rows = await getDb().execute<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    status: 'online' | 'idle' | 'dnd';
+    since_ms: number;
+    game: string | null;
+  }>(sql`
+    select m.user_id, m.username, m.display_name, m.avatar_url, p.status,
+      (extract(epoch from p.started_at) * 1000)::float8 as since_ms,
+      (select string_agg(distinct a.activity_name, ', ') from activity_sessions a
+        where a.guild_id = m.guild_id and a.user_id = m.user_id and a.ended_at is null) as game
+    from presence_sessions p
+    join members m on m.guild_id = p.guild_id and m.user_id = p.user_id
+    where p.guild_id = ${guildId} and p.ended_at is null
+      and m.left_at is null and not m.is_bot and ${notExcludedMember('m', { show })}
+      and not exists (
+        select 1 from voice_sessions v
+        where v.guild_id = p.guild_id and v.user_id = p.user_id and v.ended_at is null
+      )
+    order by case p.status when 'online' then 0 when 'idle' then 1 else 2 end, m.display_name
+  `);
+
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    avatarUrl: r.avatar_url,
+    status: r.status,
+    since: new Date(r.since_ms),
+    game: r.game,
   }));
 }
 

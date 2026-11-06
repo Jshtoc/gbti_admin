@@ -4,6 +4,7 @@ import { BarList } from '@/components/dashboard/BarList';
 import { LeastActiveList } from '@/components/dashboard/LeastActiveList';
 import { MemberInfoUpdate } from '@/components/dashboard/MemberInfoUpdate';
 import { MemberTable } from '@/components/dashboard/MemberTable';
+import { OnlineOutsideVoiceList } from '@/components/dashboard/OnlineOutsideVoiceList';
 import { VoiceSessionList } from '@/components/dashboard/VoiceSessionList';
 import { Avatar } from '@/components/ui/Avatar';
 import { Reveal } from '@/components/ui/Reveal';
@@ -42,10 +43,11 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   const query: OverviewQuery = { period, sort, member: selected?.userId };
 
   // 전체 보기: 서버 듀오 순위 / 멤버 선택: 그 멤버의 상대 순위 + 방제목별 음성 세션
-  const [pairs, partners, recent] = await Promise.all([
+  const [pairs, partners, recent, onlineOutside] = await Promise.all([
     selected ? [] : repo.getCoPlayPairs(range, 8),
     selected ? repo.getPartners(selected.userId, range, 8) : [],
     selected ? repo.getVoiceSessionGroups(selected.userId, range, 8) : [],
+    repo.getOnlineOutsideVoice(),
   ]);
 
   const totalVoice = members.reduce((sum, m) => sum + m.voiceSeconds, 0);
@@ -197,6 +199,16 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
           </div>
         </>
       )}
+
+      <section className={styles.section} aria-labelledby="online-outside">
+        <SectionHeader
+          eyebrow="Online · Not in voice"
+          title="온라인인데 음성방에 없는 멤버"
+          id="online-outside"
+          aside={`지금 기준 ${onlineOutside.length}명 · 새로고침하면 갱신`}
+        />
+        <OnlineOutsideVoiceList members={onlineOutside} period={period} />
+      </section>
 
       <section className={styles.section} aria-labelledby="members">
         <SectionHeader

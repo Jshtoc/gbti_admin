@@ -11,6 +11,7 @@ import type {
   MemberLastVoice,
   MemberListItem,
   OffControlEntry,
+  OnlineOutsideVoice,
   PairTime,
   PartnerTime,
   VoiceSessionGroup,
@@ -25,6 +26,8 @@ export interface DashboardRepository {
   getLastVoiceExits(): Promise<MemberLastVoice[]>;
   /** 온라인 상태가 아닌데 음성방에 있거나 채팅을 친 기록 (날짜·시·멤버별, 최근 순) */
   getOffControlEntries(): Promise<OffControlEntry[]>;
+  /** 지금 온라인인데 음성방에 없는 멤버 (온라인 상태 → 이름 순) */
+  getOnlineOutsideVoice(): Promise<OnlineOutsideVoice[]>;
   /** 멤버별 최근 FIRST_JOIN_DAYS일 평균 첫 음성방 입장 시각 */
   getAverageFirstJoins(): Promise<MemberAvgJoin[]>;
   /** 멤버별 음성 시간과 그중 잠수(마이크 끈) 시간 */

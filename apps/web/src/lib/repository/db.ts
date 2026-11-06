@@ -11,6 +11,7 @@ export function createDbRepository(guildId: string, showUserId?: string): Dashbo
     getMemberActivity: (range) => queries.getMemberActivity(guildId, range, showUserId),
     getLastVoiceExits: () => queries.getLastVoiceExits(guildId, showUserId),
     getOffControlEntries: () => queries.getOffControlEntries(guildId, showUserId),
+    getOnlineOutsideVoice: () => queries.getOnlineOutsideVoice(guildId, showUserId),
     getAverageFirstJoins: () => queries.getAverageFirstJoins(guildId, showUserId),
     getMemberIdle: (range) => queries.getMemberIdle(guildId, range, showUserId),
     getCoPlayPairs: (range, limit) => queries.getCoPlayPairs(guildId, range, limit, showUserId),

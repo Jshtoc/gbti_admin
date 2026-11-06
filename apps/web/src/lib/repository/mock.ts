@@ -10,6 +10,7 @@ import type {
   MemberIdle,
   MemberLastVoice,
   OffControlEntry,
+  OnlineOutsideVoice,
   MemberRef,
   PartnerTime,
   VoiceSessionGroup,
@@ -381,6 +382,18 @@ export function createMockRepository(): DashboardRepository {
       });
     },
 
+    async getOnlineOutsideVoice() {
+      // SQL과 같은 규칙: 진행 중인 온라인 구간이 있고 진행 중인 음성 세션(모든 채널)이 없는 멤버. 목데이터엔 상태 구분이 없어 모두 online
+      const inVoice = new Set(data.voice.filter((v) => v.endedAt === null).map((v) => v.userId));
+      const found: OnlineOutsideVoice[] = [];
+      for (const p of data.presence) {
+        if (p.endedAt !== null || inVoice.has(p.userId) || !isCounted(p.userId)) continue;
+        const m = memberById.get(p.userId)!;
+        const games = [...new Set(data.activity.filter((a) => a.userId === p.userId && a.endedAt === null).map((a) => a.activityName))];
+        found.push({ ...toRef(m), username: m.username, status: 'online', since: p.startedAt, game: games.join(', ') || null });
+      }
+      return found.sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko'));
+    },
 
     async getOffControlEntries() {
       const now = new Date();

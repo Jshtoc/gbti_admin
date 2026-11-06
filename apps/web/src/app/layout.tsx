@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Jua, Noto_Sans_KR, Syne } from 'next/font/google';
 
 import { SiteHeader } from '@/components/ui/SiteHeader';
-import { isLoggedIn } from '@/lib/auth/server';
+import { getRole } from '@/lib/auth/server';
 
 import './globals.css';
 
@@ -49,11 +49,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const loggedIn = await isLoggedIn();
+  const role = await getRole();
+  const loggedIn = role !== null;
   return (
     <html lang="ko" className={`${syne.variable} ${inter.variable} ${jua.variable} ${notoKr.variable}`}>
       <body>
-        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} loggedIn={loggedIn} />
+        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} loggedIn={loggedIn} showTabs={role !== 'guest'} />
         <main>{children}</main>
       </body>
     </html>

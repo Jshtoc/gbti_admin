@@ -2,7 +2,7 @@ import { FIRST_JOIN_DAY_START_HOUR, FIRST_JOIN_DAYS } from '@gbti/db';
 
 import { AvgJoinList, type AvgJoinRow } from '@/components/dashboard/AvgJoinList';
 import { PageHero } from '@/components/ui/PageHero';
-import { requireSession } from '@/lib/auth/server';
+import { requireFullAccess } from '@/lib/auth/server';
 import { getRepository } from '@/lib/repository';
 
 import styles from '../dashboard.module.css';
@@ -11,7 +11,7 @@ import styles from '../dashboard.module.css';
 export const dynamic = 'force-dynamic';
 
 export default async function AvgJoinPage() {
-  await requireSession();
+  await requireFullAccess();
   const members = await (await getRepository()).getAverageFirstJoins();
 
   // 하루 기준(06:00)으로 이른 순 → 기록 없음. 같으면 이름순

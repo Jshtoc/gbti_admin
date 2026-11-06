@@ -4,7 +4,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { PageHero } from '@/components/ui/PageHero';
 import { PeriodControl } from '@/components/ui/PeriodControl';
 import { StatTile } from '@/components/ui/StatTile';
-import { requireSession } from '@/lib/auth/server';
+import { requireFullAccess } from '@/lib/auth/server';
 import { formatDuration, toHours } from '@/lib/format';
 import { NIGHT_LABEL, parsePeriod, periodLabel, toDateRange } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
@@ -24,7 +24,7 @@ const sharePercent = (shared: number, total: number) => (total > 0 ? Math.min(10
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
 
 export default async function PairPage({ searchParams }: PairPageProps) {
-  await requireSession();
+  await requireFullAccess();
   const query = await searchParams;
   const period = parsePeriod(query);
   const repo = await getRepository();

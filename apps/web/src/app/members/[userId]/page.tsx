@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { LinkPending } from '@/components/ui/LinkPending';
 import { PageHero } from '@/components/ui/PageHero';
 import { PeriodControl } from '@/components/ui/PeriodControl';
-import { requireSession } from '@/lib/auth/server';
+import { getRole, requireSession } from '@/lib/auth/server';
 import { periodHref } from '@/lib/overviewQuery';
 import { NIGHT_LABEL, parsePeriod, periodLabel } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
@@ -30,7 +30,9 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
 
   // 상단에 필요한 정보만 가벼운 목록에서 (무거운 집계는 아래 Suspense 안에서)
   const repo = await getRepository();
-  const [members, account] = await Promise.all([repo.getMembers(), repo.getMemberAccount(userId)]);
+  // 개요 전용 계정에는 게임 계정 ID(롤·스팀 등)를 보여주지 않는다 (조회도 하지 않음)
+  const showAccount = (await getRole()) !== 'guest';
+  const [members, account] = await Promise.all([repo.getMembers(), showAccount ? repo.getMemberAccount(userId) : null]);
   const member = members.find((m) => m.userId === userId);
   if (!member) notFound();
 
@@ -53,7 +55,7 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
         aside={<PeriodControl period={period} basePath={`/members/${userId}`} />}
       />
 
-      <AccountCard displayName={member.displayName} {...account} />
+      {account && <AccountCard displayName={member.displayName} {...account} />}
 
       <Suspense key={`${period.from}|${period.to}|${period.night ? 'n' : 'a'}`} fallback={<MemberSkeleton />}>
         <MemberContent userId={userId} period={period} />

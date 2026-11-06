@@ -33,6 +33,9 @@ export function verifyCredentials(id: string, password: string): SessionRole | n
   const viewer =
     Boolean(process.env.VIEWER_SHOW_USER_ID) &&
     matches(id, password, process.env.VIEWER_ID, process.env.VIEWER_PASSWORD);
+  // 개요 전용 계정(GUEST_ID / GUEST_PASSWORD): 개요(와 멤버 상세)만 볼 수 있고 다른 탭은 막힌다
+  const guest = matches(id, password, process.env.GUEST_ID, process.env.GUEST_PASSWORD);
   if (admin) return 'admin';
-  return viewer ? 'viewer' : null;
+  if (viewer) return 'viewer';
+  return guest ? 'guest' : null;
 }

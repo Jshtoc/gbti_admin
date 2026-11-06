@@ -8,9 +8,11 @@ import { TabNav } from './TabNav';
 interface SiteHeaderProps {
   dataSource: 'db' | 'mock';
   loggedIn: boolean;
+  /** 개요 전용 계정은 다른 탭이 없어 메뉴를 숨긴다 */
+  showTabs?: boolean;
 }
 
-export function SiteHeader({ dataSource, loggedIn }: SiteHeaderProps) {
+export function SiteHeader({ dataSource, loggedIn, showTabs = true }: SiteHeaderProps) {
   return (
     <header className={styles.header}>
       <div className={`container ${styles.inner}`}>
@@ -31,7 +33,7 @@ export function SiteHeader({ dataSource, loggedIn }: SiteHeaderProps) {
           )}
         </div>
       </div>
-      {loggedIn && <TabNav />}
+      {loggedIn && showTabs && <TabNav />}
     </header>
   );
 }

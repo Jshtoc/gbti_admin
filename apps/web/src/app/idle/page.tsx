@@ -1,7 +1,7 @@
 import { IdleList, type IdleRow } from '@/components/dashboard/IdleList';
 import { PageHero } from '@/components/ui/PageHero';
 import { PeriodControl } from '@/components/ui/PeriodControl';
-import { requireSession } from '@/lib/auth/server';
+import { requireFullAccess } from '@/lib/auth/server';
 import { NIGHT_LABEL, parsePeriod, periodLabel, toDateRange } from '@/lib/period';
 import { getRepository } from '@/lib/repository';
 
@@ -15,7 +15,7 @@ interface IdlePageProps {
 }
 
 export default async function IdlePage({ searchParams }: IdlePageProps) {
-  await requireSession();
+  await requireFullAccess();
   const period = parsePeriod(await searchParams);
   const members = await (await getRepository()).getMemberIdle(toDateRange(period));
 

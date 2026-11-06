@@ -40,6 +40,7 @@
 
 - 관리자 1명, ID/PW는 환경 변수 `ADMIN_ID` / `ADMIN_PASSWORD` (공개 저장소라 코드·커밋에 넣지 않는다. 로컬은 `apps/web/.env.local`).
 - **제한 계정**: `VIEWER_ID` / `VIEWER_PASSWORD` / `VIEWER_SHOW_USER_ID`(디스코드 유저 ID)를 설정하면 두 번째 계정이 생긴다. 이 계정에서만 그 멤버의 통계 제외(`stats_excluded_members`·닉네임 태그)를 풀어 멤버 목록·집계에 함께 보인다(`getRepository()`가 세션 역할을 보고 쿼리의 `show` 인자로 넘김, `notExcludedMember(alias, { show })`). 관리자 계정은 그대로 제외. `DATA_SOURCE=db`일 때만 동작(목데이터는 차이 없음). 세션 토큰 버전 `v1` = 관리자, `v2` = 제한 계정. 값은 코드·커밋에 넣지 않는다.
+- **개요 전용 계정**: `GUEST_ID` / `GUEST_PASSWORD`를 설정하면 세 번째 계정(세션 토큰 버전 `v3`, 역할 `guest`)이 생긴다. 개요(`/`)와 멤버 상세만 볼 수 있다. 상단 탭 메뉴는 숨기고, 다른 탭 주소로 가면 `proxy.ts`와 각 페이지의 `requireFullAccess()`가 개요로 돌려보낸다. 멤버 상세에서도 게임 계정 ID 카드는 숨긴다(조회하지 않음). 통계 제외 규칙은 관리자와 같고, 멤버 정보 업데이트 API는 제한 계정(viewer)만 쓸 수 있어 403. **개요·멤버 상세 외 새 페이지를 만들면 `requireSession()` 대신 `requireFullAccess()`를 쓴다.** 값은 코드·커밋에 넣지 않는다.
 - 로그인 성공 시 HMAC 서명 세션 쿠키(`gbti_session`, httpOnly, 30일). 서명 키는 ID/PW(+선택 `AUTH_SECRET`)에서 만들므로 비밀번호를 바꾸면 기존 세션이 끊긴다.
 - `src/proxy.ts`(Next 16의 middleware)가 비로그인 요청을 `/login?next=...`로 보내고, 각 페이지도 `requireSession()`으로 한 번 더 확인한다. 새 페이지를 만들면 `requireSession()`을 꼭 넣는다.
 

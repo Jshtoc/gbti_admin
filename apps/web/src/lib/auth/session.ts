@@ -10,14 +10,21 @@ const encoder = new TextEncoder();
  * 서명 키. 아이디/비밀번호가 바뀌면 키도 바뀌어 기존 세션이 모두 무효가 된다.
  * AUTH_SECRET을 따로 두면 그 값도 섞는다 (선택).
  */
-export type SessionRole = 'admin' | 'viewer';
+export type SessionRole = 'admin' | 'viewer' | 'guest';
 
-/** 토큰 버전이 역할을 나타낸다: v1 = 관리자, v2 = 제한 계정 */
-const ROLE_VERSION: Record<SessionRole, string> = { admin: 'v1', viewer: 'v2' };
+/** 토큰 버전이 역할을 나타낸다: v1 = 관리자, v2 = 제한 계정, v3 = 개요만 보는 계정 */
+const ROLE_VERSION: Record<SessionRole, string> = { admin: 'v1', viewer: 'v2', guest: 'v3' };
+
+const ACCOUNT_ENV: Record<SessionRole, [id: string, password: string]> = {
+  admin: ['ADMIN_ID', 'ADMIN_PASSWORD'],
+  viewer: ['VIEWER_ID', 'VIEWER_PASSWORD'],
+  guest: ['GUEST_ID', 'GUEST_PASSWORD'],
+};
 
 function signingSecret(role: SessionRole): string | null {
-  const id = role === 'admin' ? process.env.ADMIN_ID : process.env.VIEWER_ID;
-  const password = role === 'admin' ? process.env.ADMIN_PASSWORD : process.env.VIEWER_PASSWORD;
+  const [idKey, passwordKey] = ACCOUNT_ENV[role];
+  const id = process.env[idKey];
+  const password = process.env[passwordKey];
   if (!id || !password) return null;
   return `${process.env.AUTH_SECRET ?? ''}|${id}|${password}`;
 }

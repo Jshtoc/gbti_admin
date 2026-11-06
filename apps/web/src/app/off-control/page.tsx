@@ -1,6 +1,6 @@
 import { OffControlLog, type OffControlRow } from '@/components/dashboard/OffControlLog';
 import { PageHero } from '@/components/ui/PageHero';
-import { requireSession } from '@/lib/auth/server';
+import { requireFullAccess } from '@/lib/auth/server';
 import { getRepository } from '@/lib/repository';
 
 import styles from '../dashboard.module.css';
@@ -9,7 +9,7 @@ import styles from '../dashboard.module.css';
 export const dynamic = 'force-dynamic';
 
 export default async function OffControlPage() {
-  await requireSession();
+  await requireFullAccess();
   const entries = await (await getRepository()).getOffControlEntries();
 
   const rows: OffControlRow[] = entries.map((e) => ({

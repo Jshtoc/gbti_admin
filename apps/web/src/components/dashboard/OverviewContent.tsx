@@ -47,7 +47,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
 
   // 전체 보기: 서버 듀오 순위 / 멤버 선택: 그 멤버의 상대 순위 + 방제목별 음성 세션
   const [pairs, partners, recent, onlineOutside] = await Promise.all([
-    selected ? [] : repo.getCoPlayPairs(range, 8),
+    selected || !linked ? [] : repo.getCoPlayPairs(range, 8),
     selected ? repo.getPartners(selected.userId, range, 8) : [],
     selected ? repo.getVoiceSessionGroups(selected.userId, range, 8) : [],
     repo.getOnlineOutsideVoice(),
@@ -69,7 +69,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
 
   return (
     <>
-      <section className={styles.stats} aria-label="요약 지표">
+      <section className={`${styles.stats} ${linked ? '' : styles.statsTwo}`} aria-label="요약 지표">
         <Reveal index={0}>
           {selected ? (
             <StatTile
@@ -91,7 +91,8 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
             caption={`${members.length - activeCount}명은 ${span} 접속 없음`}
           />
         </Reveal>
-        <Reveal index={2}>
+        {linked && (
+          <Reveal index={2}>
           {selected ? (
             <StatTile
               label="최다 듀오"
@@ -107,7 +108,8 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
               caption={topPair ? `${topPair.a.displayName} & ${topPair.b.displayName}` : '함께한 기록 없음'}
             />
           )}
-        </Reveal>
+          </Reveal>
+        )}
       </section>
 
       {selected ? (
@@ -165,7 +167,8 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
         </>
       ) : (
         <>
-          <div className={styles.split}>
+          <div className={linked ? styles.split : undefined}>
+            {linked && (
             <section className={styles.section} aria-labelledby="best-duo">
               <SectionHeader
                 eyebrow="Best duo"
@@ -197,8 +200,9 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
                 </div>
               </Reveal>
             </section>
+            )}
 
-            {leastActiveSection(5)}
+            {leastActiveSection(9)}
           </div>
         </>
       )}

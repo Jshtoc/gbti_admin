@@ -49,6 +49,11 @@
   color: var(--faint);
 }
 
+/* 개요 전용 계정: 최장 듀오 칸이 없어 두 칸 */
+.statsTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (max-width: 960px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));

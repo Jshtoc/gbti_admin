@@ -202,7 +202,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
             </section>
             )}
 
-            {leastActiveSection(9)}
+            {leastActiveSection(linked ? 5 : 9)}
           </div>
         </>
       )}

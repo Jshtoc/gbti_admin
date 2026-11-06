@@ -14,7 +14,7 @@ export async function isLoggedIn(): Promise<boolean> {
   return (await getRole()) !== null;
 }
 
-/** 개요 전용 계정은 개요(/)로 돌려보낸다. 개요·멤버 상세 외 페이지에서 requireSession 대신 쓴다 */
+/** 개요 전용 계정은 개요(/)로 돌려보낸다. 개요 외 모든 페이지에서 requireSession 대신 쓴다 */
 export async function requireFullAccess(nextPath = '/'): Promise<void> {
   const role = await getRole();
   if (!role) redirect(`/login?next=${encodeURIComponent(nextPath)}`);

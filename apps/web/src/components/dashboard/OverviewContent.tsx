@@ -36,10 +36,13 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
 
   const members = await repo.getMemberActivity(range);
   // 멤버 정보 TXT 업데이트는 제한 계정(viewer)에서만, DB 모드일 때만
-  const canEditInfo = process.env.DATA_SOURCE === 'db' && (await getRole()) === 'viewer';
+  const role = await getRole();
+  const canEditInfo = process.env.DATA_SOURCE === 'db' && role === 'viewer';
+  // 개요 전용 계정: 멤버 선택·멤버 상세 링크 없이 개요만 보여준다
+  const linked = role !== 'guest';
 
   // 존재하는 멤버만 선택으로 인정한다 (잘못된 값은 전체 보기)
-  const selected = members.find((m) => m.userId === memberId);
+  const selected = linked ? members.find((m) => m.userId === memberId) : undefined;
   const query: OverviewQuery = { period, sort, member: selected?.userId };
 
   // 전체 보기: 서버 듀오 순위 / 멤버 선택: 그 멤버의 상대 순위 + 방제목별 음성 세션
@@ -60,7 +63,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
   const leastActiveSection = (count: number) => (
     <section className={styles.section} aria-labelledby="least-active">
       <SectionHeader eyebrow="Least active" title="접속이 가장 적은 멤버" id="least-active" aside={`${period.night ? `${NIGHT_LABEL} ` : ''}음성 시간 적은 순 · 전체 ${members.length}명`} />
-      <LeastActiveList members={leastActive(members, members.length)} period={period} pageSize={count} />
+      <LeastActiveList members={leastActive(members, members.length)} period={period} pageSize={count} linked={linked} />
     </section>
   );
 
@@ -207,7 +210,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
           id="online-outside"
           aside={`지금 기준 ${onlineOutside.length}명 · 새로고침하면 갱신`}
         />
-        <OnlineOutsideVoiceList members={onlineOutside} period={period} />
+        <OnlineOutsideVoiceList members={onlineOutside} period={period} linked={linked} />
       </section>
 
       <section className={styles.section} aria-labelledby="members">
@@ -223,7 +226,7 @@ export async function OverviewContent({ period, sort, memberId }: OverviewConten
           }
         />
         <Reveal>
-          <MemberTable members={sortMembers(members, sort)} query={query} />
+          <MemberTable members={sortMembers(members, sort)} query={query} linked={linked} />
         </Reveal>
       </section>
     </>

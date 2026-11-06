@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { getSessionRole, SESSION_COOKIE } from '@/lib/auth/session';
 
-/** 개요 전용 계정이 갈 수 있는 경로: 개요, 멤버 상세 (API는 각자 권한 검사로 403) */
-const isGuestPath = (pathname: string) => pathname === '/' || pathname.startsWith('/members/') || pathname.startsWith('/api/');
+/** 개요 전용 계정이 갈 수 있는 경로: 개요뿐 (API는 각자 권한 검사로 403) */
+const isGuestPath = (pathname: string) => pathname === '/' || pathname.startsWith('/api/');
 
 /** 로그인하지 않은 요청은 /login 으로, 개요 전용 계정이 다른 탭으로 가면 개요로 보낸다 */
 export async function proxy(request: NextRequest) {

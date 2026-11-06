@@ -1,8 +1,7 @@
-import Link from 'next/link';
-
 import type { OnlineOutsideVoice } from '@gbti/db';
 
 import { Avatar } from '@/components/ui/Avatar';
+import { MemberLink } from '@/components/ui/MemberLink';
 import { Reveal } from '@/components/ui/Reveal';
 import { formatLastSeen } from '@/lib/format';
 import { periodHref } from '@/lib/overviewQuery';
@@ -20,10 +19,12 @@ interface OnlineOutsideVoiceListProps {
   /** 온라인 상태 → 이름 순으로 정렬된 멤버 */
   members: OnlineOutsideVoice[];
   period: Period;
+  /** false면 멤버 상세 링크를 없앤다 (개요 전용 계정) */
+  linked?: boolean;
 }
 
 /** 지금 온라인인데 음성방에 없는 멤버. 조회 시점 기준(실시간 갱신 아님). */
-export function OnlineOutsideVoiceList({ members, period }: OnlineOutsideVoiceListProps) {
+export function OnlineOutsideVoiceList({ members, period, linked = true }: OnlineOutsideVoiceListProps) {
   if (members.length === 0) {
     return <p className={styles.empty}>지금 온라인이면서 음성방에 없는 멤버가 없습니다.</p>;
   }
@@ -35,7 +36,7 @@ export function OnlineOutsideVoiceList({ members, period }: OnlineOutsideVoiceLi
       {members.map((m, index) => (
         <li key={m.userId}>
           <Reveal index={Math.min(index, 8)}>
-            <Link href={periodHref(`/members/${m.userId}`, period)} className={styles.card}>
+            <MemberLink href={periodHref(`/members/${m.userId}`, period)} linked={linked} className={styles.card}>
               <Avatar name={m.displayName} src={m.avatarUrl} size="sm" />
               <span className={styles.body}>
                 <span className={styles.title}>{m.displayName}</span>
@@ -47,7 +48,7 @@ export function OnlineOutsideVoiceList({ members, period }: OnlineOutsideVoiceLi
               <span className={styles.status} data-status={m.status}>
                 {STATUS_LABEL[m.status]}
               </span>
-            </Link>
+            </MemberLink>
           </Reveal>
         </li>
       ))}

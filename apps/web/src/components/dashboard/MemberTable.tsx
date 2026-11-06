@@ -4,6 +4,7 @@ import type { MemberActivity } from '@gbti/db';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { LinkPending } from '@/components/ui/LinkPending';
+import { MemberLink } from '@/components/ui/MemberLink';
 import { formatDuration, formatLastSeen } from '@/lib/format';
 import type { MemberSortKey } from '@/lib/memberSort';
 import { overviewHref, periodHref, type OverviewQuery } from '@/lib/overviewQuery';
@@ -13,6 +14,8 @@ import styles from './MemberTable.module.css';
 interface MemberTableProps {
   members: MemberActivity[];
   query: OverviewQuery;
+  /** false면 멤버 이름을 링크로 만들지 않는다 (개요 전용 계정) */
+  linked?: boolean;
 }
 
 const COLUMNS: { key: MemberSortKey; label: string }[] = [
@@ -22,7 +25,7 @@ const COLUMNS: { key: MemberSortKey; label: string }[] = [
 ];
 
 /** PC는 표, 모바일(640px 이하)은 카드 목록으로 보여준다 */
-export function MemberTable({ members, query }: MemberTableProps) {
+export function MemberTable({ members, query, linked = true }: MemberTableProps) {
   const sort = query.sort ?? 'voice';
   const sortHref = (key: MemberSortKey) => overviewHref({ ...query, sort: key }, 'members');
   const detailHref = (userId: string) => periodHref(`/members/${userId}`, query.period);
@@ -64,14 +67,14 @@ export function MemberTable({ members, query }: MemberTableProps) {
               <tr key={m.userId} data-selected={m.userId === query.member || undefined}>
                 <td className={styles.rankCol}>{index + 1}</td>
                 <td>
-                  <Link href={detailHref(m.userId)} className={styles.member}>
+                  <MemberLink href={detailHref(m.userId)} linked={linked} className={styles.member}>
                     <Avatar name={m.displayName} src={m.avatarUrl} size="sm" />
                     <span className={styles.names}>
                       <span className={styles.displayName}>{m.displayName}</span>
                       <span className={styles.username}>@{m.username}</span>
                     </span>
-                    <LinkPending size={12} />
-                  </Link>
+                    {linked && <LinkPending size={12} />}
+                  </MemberLink>
                 </td>
                 <td className={styles.num}>{formatDuration(m.voiceSeconds)}</td>
                 <td className={styles.num}>{formatDuration(m.onlineSeconds)}</td>
@@ -102,8 +105,9 @@ export function MemberTable({ members, query }: MemberTableProps) {
         <ol className={styles.cards}>
           {members.map((m, index) => (
             <li key={m.userId}>
-              <Link
+              <MemberLink
                 href={detailHref(m.userId)}
+                linked={linked}
                 className={styles.card}
                 data-selected={m.userId === query.member || undefined}
               >
@@ -114,9 +118,11 @@ export function MemberTable({ members, query }: MemberTableProps) {
                     <span className={styles.displayName}>{m.displayName}</span>
                     <span className={styles.username}>{m.topGame ?? '게임 기록 없음'}</span>
                   </span>
-                  <span className={styles.cardPending}>
-                    <LinkPending size={12} />
-                  </span>
+                  {linked && (
+                    <span className={styles.cardPending}>
+                      <LinkPending size={12} />
+                    </span>
+                  )}
                 </span>
                 <dl className={styles.cardStats}>
                   <div data-active={sort === 'voice' || undefined}>
@@ -132,7 +138,7 @@ export function MemberTable({ members, query }: MemberTableProps) {
                     <dd>{formatLastSeen(m.lastSeenAt)}</dd>
                   </div>
                 </dl>
-              </Link>
+              </MemberLink>
             </li>
           ))}
         </ol>

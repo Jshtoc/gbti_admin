@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 
 import type { MemberActivity } from '@gbti/db';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { LinkPending } from '@/components/ui/LinkPending';
+import { MemberLink } from '@/components/ui/MemberLink';
 import { Reveal } from '@/components/ui/Reveal';
 import { formatDuration, formatLastSeen } from '@/lib/format';
 import { periodHref } from '@/lib/overviewQuery';
@@ -19,6 +19,8 @@ interface LeastActiveListProps {
   members: MemberActivity[];
   period: Period;
   pageSize: number;
+  /** false면 멤버 상세 링크와 화살표를 없앤다 (개요 전용 계정) */
+  linked?: boolean;
 }
 
 /** 보여줄 페이지 번호: 7쪽 이하면 전부, 넘으면 처음·끝·현재 주변만 (사이는 …) */
@@ -35,7 +37,7 @@ function pageItems(current: number, total: number): (number | 'gap')[] {
 }
 
 /** 접속이 가장 적은 멤버 (전체, 페이지 단위). 카드형 메뉴 패턴(라벨 pill + 타이틀 + 원형 화살표). */
-export function LeastActiveList({ members, period, pageSize }: LeastActiveListProps) {
+export function LeastActiveList({ members, period, pageSize, linked = true }: LeastActiveListProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
   const current = Math.min(page, totalPages - 1);
@@ -50,7 +52,7 @@ export function LeastActiveList({ members, period, pageSize }: LeastActiveListPr
         {visible.map((m, index) => (
           <li key={m.userId}>
             <Reveal index={index}>
-              <Link href={periodHref(`/members/${m.userId}`, period)} className={styles.card}>
+              <MemberLink href={periodHref(`/members/${m.userId}`, period)} linked={linked} className={styles.card}>
                 <span className={styles.rank}>{start + index + 1}</span>
                 <Avatar name={m.displayName} src={m.avatarUrl} />
                 <span className={styles.body}>
@@ -62,14 +64,16 @@ export function LeastActiveList({ members, period, pageSize }: LeastActiveListPr
                     음성 {formatDuration(m.voiceSeconds)} · 온라인 {formatDuration(m.onlineSeconds)}
                   </span>
                 </span>
-                <span className={styles.arrow}>
-                  <LinkPending size={14}>
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M2 12L12 2M12 2H4M12 2V10" />
-                    </svg>
-                  </LinkPending>
-                </span>
-              </Link>
+                {linked && (
+                  <span className={styles.arrow}>
+                    <LinkPending size={14}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M2 12L12 2M12 2H4M12 2V10" />
+                      </svg>
+                    </LinkPending>
+                  </span>
+                )}
+              </MemberLink>
             </Reveal>
           </li>
         ))}

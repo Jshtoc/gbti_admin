@@ -1,6 +1,6 @@
 import { DepartedList, type DepartedRow } from '@/components/dashboard/DepartedList';
 import { PageHero } from '@/components/ui/PageHero';
-import { requireFullAccess } from '@/lib/auth/server';
+import { requireSession } from '@/lib/auth/server';
 import { getRepository } from '@/lib/repository';
 
 import styles from '../dashboard.module.css';
@@ -9,7 +9,7 @@ import styles from '../dashboard.module.css';
 export const dynamic = 'force-dynamic';
 
 export default async function DepartedPage() {
-  await requireFullAccess('/departed');
+  await requireSession('/departed'); // 개요 전용 계정(guest)도 볼 수 있다
   const members = await (await getRepository()).getDepartedMembers();
 
   const rows: DepartedRow[] = members.map((m) => ({

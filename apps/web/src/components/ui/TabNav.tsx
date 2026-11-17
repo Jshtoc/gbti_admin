@@ -14,16 +14,19 @@ const TABS = [
   { href: '/off-control', label: '온 오프 컨트롤 유저' },
   { href: '/departed', label: '탈퇴 유저' },
 ];
+/** 개요 전용 계정에 보이는 탭 */
+const GUEST_TABS = ['/', '/departed'];
 const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle', '/pair', '/off-control', '/departed'];
 
 /** 상단 탭 메뉴. 멤버 상세는 개요에 속하는 화면으로 본다 */
-export function TabNav() {
+export function TabNav({ guest = false }: { guest?: boolean }) {
   const pathname = usePathname();
+  const tabs = guest ? TABS.filter((t) => GUEST_TABS.includes(t.href)) : TABS;
   const isActive = (href: string) => (href === '/' ? !OTHER_PAGES.some((p) => pathname.startsWith(p)) : pathname.startsWith(href));
 
   return (
     <nav className={`container ${styles.nav}`} aria-label="메뉴">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <Link key={tab.href} href={tab.href} className={styles.tab} aria-current={isActive(tab.href) ? 'page' : undefined}>
           {tab.label}
         </Link>

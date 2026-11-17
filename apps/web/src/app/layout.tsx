@@ -54,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ko" className={`${syne.variable} ${inter.variable} ${jua.variable} ${notoKr.variable}`}>
       <body>
-        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} loggedIn={loggedIn} showTabs={role !== 'guest'} />
+        <SiteHeader dataSource={process.env.DATA_SOURCE === 'db' ? 'db' : 'mock'} loggedIn={loggedIn} guest={role === 'guest'} />
         <main>{children}</main>
       </body>
     </html>

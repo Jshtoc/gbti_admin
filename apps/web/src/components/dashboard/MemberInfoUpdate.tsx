@@ -20,7 +20,7 @@ interface SyncResult {
 type Status = { kind: 'idle' } | { kind: 'busy' } | { kind: 'error'; message: string } | { kind: 'done'; result: SyncResult };
 
 /** "멤버 정보" 버튼 + 팝업 (잡담금 스레드로 멤버 정보 업데이트, 미입력 멤버 목록). 제한 계정에서만 렌더된다 */
-export function MemberInfoUpdate() {
+export function MemberInfoUpdate({ label = '멤버 정보' }: { label?: string }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -49,7 +49,7 @@ export function MemberInfoUpdate() {
   return (
     <>
       <button type="button" className={styles.trigger} onClick={open}>
-        멤버 정보
+        {label}
       </button>
 
       <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="member-info-title">

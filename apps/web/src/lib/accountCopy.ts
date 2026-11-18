@@ -24,9 +24,11 @@ export function accountRows(a: AccountIds): [string, string][] {
   ];
 }
 
-/** 계정정보 복사: 이름 + 전체 항목 (빈 값도 줄은 남긴다) */
+/** 계정정보 복사: 이름 + 값이 있는 항목만 (비어 있는 항목은 줄째로 뺀다) */
 export function buildAccountText(displayName: string, a: AccountIds): string {
-  const lines = accountRows(a).map(([label, value]) => `${label} : ${value}`);
+  const lines = accountRows(a)
+    .filter(([, value]) => value.trim())
+    .map(([label, value]) => `${label} : ${value}`);
   return [`이름 : ${stripNameTag(displayName)}`, ...lines].join('\n');
 }
 

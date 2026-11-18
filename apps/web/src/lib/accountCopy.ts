@@ -7,7 +7,7 @@ export interface AccountIds {
   robloxId: string;
 }
 
-export const KICK_MESSAGE = '친구삭제 부탁드립니다.\n몰랐습니다 깜박했어요 안됩니다.';
+export const KICK_MESSAGE = '나간 사람을 알아서 친삭해주세요\n몰랐다 까먹었다 안됩니다\n\n친삭 안한거 적발 시 추방합니다';
 
 /** 닉네임 앞의 [] 태그를 빼고 공백을 정리한다 */
 export function stripNameTag(displayName: string): string {
@@ -37,6 +37,26 @@ export function buildKickText(a: AccountIds): string {
     .map(([label, value]) => `${label} : ${value}`)
     .join('\n');
   return ids ? `${ids}\n\n${KICK_MESSAGE}` : KICK_MESSAGE;
+}
+
+/** 여러 멤버 계정정보 복사: 멤버마다 이름 + 값이 있는 항목만, 멤버 사이는 빈 줄 */
+export function buildAccountTextMany(members: { displayName: string; ids: AccountIds }[]): string {
+  return members
+    .map(({ displayName, ids }) => {
+      const lines = accountRows(ids)
+        .filter(([, value]) => value.trim())
+        .map(([label, value]) => `${label} : ${value}`);
+      // 계정 정보가 하나도 없는 멤버는 표기하지 않는다
+      return lines.length > 0 ? [`이름 : ${stripNameTag(displayName)}`, ...lines].join('\n') : '';
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** 여러 멤버 퇴출 복사: 여러 멤버 계정정보 복사와 같고, 안내 문구만 맨 끝에 한 번 붙인다 */
+export function buildKickTextMany(members: { displayName: string; ids: AccountIds }[]): string {
+  const body = buildAccountTextMany(members);
+  return body ? `${body}\n\n${KICK_MESSAGE}` : KICK_MESSAGE;
 }
 
 export async function writeClipboard(text: string): Promise<boolean> {

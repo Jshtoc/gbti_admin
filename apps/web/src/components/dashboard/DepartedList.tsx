@@ -3,7 +3,14 @@
 import { useMemo, useState } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
-import { accountRows, stripNameTag, type AccountIds } from '@/lib/accountCopy';
+import {
+  accountRows,
+  buildAccountTextMany,
+  buildKickTextMany,
+  stripNameTag,
+  writeClipboard,
+  type AccountIds,
+} from '@/lib/accountCopy';
 import { formatDateTime, formatLeftAgo } from '@/lib/format';
 import { searchMembers } from '@/lib/memberSearch';
 
@@ -32,8 +39,59 @@ export function DepartedList({ rows, nowMs }: DepartedListProps) {
   const now = useMemo(() => new Date(nowMs), [nowMs]);
   const visible = useMemo(() => searchMembers(rows, text), [rows, text]);
 
+  // 선택한 멤버 (선택한 순서대로, 검색어를 바꿔도 유지)
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [copied, setCopied] = useState<'account' | 'kick' | null>(null);
+  const selected = useMemo(
+    () => selectedIds.map((id) => rows.find((r) => r.userId === id)).filter((r): r is DepartedRow => !!r),
+    [selectedIds, rows],
+  );
+  const isSelected = (id: string) => selectedIds.includes(id);
+  const toggle = (id: string) => setSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+
+  const copy = async (kind: 'account' | 'kick') => {
+    const members = selected.map((m) => ({ displayName: m.displayName, ids: m }));
+    const text = kind === 'account' ? buildAccountTextMany(members) : buildKickTextMany(members);
+    if (!(await writeClipboard(text))) return;
+    setCopied(kind);
+    setTimeout(() => setCopied((cur) => (cur === kind ? null : cur)), 1500);
+  };
+
   return (
     <>
+      <div className={styles.picked}>
+        <div className={styles.pickedHead}>
+          <p className={styles.pickedTitle}>
+            선택한 멤버 <span className={styles.num}>{selected.length}</span>명
+          </p>
+          <div className={styles.pickedActions}>
+            <button type="button" className={styles.pickBtn} onClick={() => setSelectedIds([])} disabled={selected.length === 0}>
+              선택 해제
+            </button>
+            <button type="button" className={styles.pickBtn} onClick={() => copy('account')} disabled={selected.length === 0}>
+              {copied === 'account' ? '복사됨' : '계정정보 복사'}
+            </button>
+            <button type="button" className={styles.pickBtn} onClick={() => copy('kick')} disabled={selected.length === 0}>
+              {copied === 'kick' ? '복사됨' : '퇴출 복사'}
+            </button>
+          </div>
+        </div>
+        {selected.length === 0 ? (
+          <p className={styles.pickedEmpty}>아래 카드의 "선택"을 눌러 멤버를 담으면 여기에 모이고, 한 번에 복사할 수 있습니다.</p>
+        ) : (
+          <ul className={styles.chips}>
+            {selected.map((m) => (
+              <li key={m.userId}>
+                <button type="button" className={styles.chip} onClick={() => toggle(m.userId)} aria-label={`${stripNameTag(m.displayName)} 선택 해제`}>
+                  {stripNameTag(m.displayName)}
+                  <span aria-hidden="true">×</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <div className={styles.search}>
         <svg className={styles.searchIcon} width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" />
@@ -63,8 +121,16 @@ export function DepartedList({ rows, nowMs }: DepartedListProps) {
             const filled = accountRows(m).filter(([, value]) => value.trim());
             const leftAt = new Date(m.leftAtMs);
             return (
-              <li key={m.userId} className={styles.card}>
+              <li key={m.userId} className={styles.card} data-selected={isSelected(m.userId) || undefined}>
                 <div className={styles.head}>
+                  <button
+                    type="button"
+                    className={styles.check}
+                    aria-pressed={isSelected(m.userId)}
+                    onClick={() => toggle(m.userId)}
+                  >
+                    {isSelected(m.userId) ? '선택됨' : '선택'}
+                  </button>
                   <Avatar name={m.displayName} src={m.avatarUrl} />
                   <span className={styles.who}>
                     <span className={styles.name}>{stripNameTag(m.displayName)}</span>

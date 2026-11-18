@@ -55,6 +55,116 @@
   color: var(--fg);
 }
 
+.picked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pickedHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pickedTitle {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pickedActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pickBtn,
+.check {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.3s,
+    background 0.3s;
+}
+
+.pickBtn:hover:not(:disabled),
+.check:hover {
+  border-color: var(--border-hover);
+  background: var(--bg3);
+}
+
+.pickBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.check {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  color: var(--muted);
+}
+
+.check[aria-pressed='true'] {
+  border-color: var(--accent2);
+  color: var(--fg);
+}
+
+.card[data-selected] {
+  border-color: var(--accent2);
+}
+
+.pickedEmpty {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg3);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--border-hover);
+}
+
+.chip span {
+  color: var(--muted);
+}
+
 .list {
   list-style: none;
   display: grid;

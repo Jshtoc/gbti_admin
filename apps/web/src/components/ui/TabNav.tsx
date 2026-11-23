@@ -11,12 +11,13 @@ const TABS = [
   { href: '/avg-join', label: '평균 접속 시간대' },
   { href: '/idle', label: '잠수 시간' },
   { href: '/pair', label: '끼리끼리 검색기' },
-  { href: '/off-control', label: '온 오프 컨트롤 유저' },
+  // 임시 비활성화: { href: '/off-control', label: '온 오프 컨트롤 유저' },
   { href: '/departed', label: '탈퇴 유저' },
+  { href: '/policy', label: '운영방침' },
 ];
 /** 개요 전용 계정에 보이는 탭 */
-const GUEST_TABS = ['/', '/departed'];
-const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle', '/pair', '/off-control', '/departed'];
+const GUEST_TABS = ['/', '/departed', '/policy'];
+const OTHER_PAGES = ['/last-seen', '/avg-join', '/idle', '/pair', '/off-control', '/departed', '/policy'];
 
 /** 상단 탭 메뉴. 멤버 상세는 개요에 속하는 화면으로 본다 */
 export function TabNav({ guest = false }: { guest?: boolean }) {

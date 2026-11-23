@@ -1,0 +1,48 @@
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 1.15rem;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 8px;
+  line-height: 1.6;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.no {
+  font-family: var(--font-num);
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 18px 16px;
+  }
+}

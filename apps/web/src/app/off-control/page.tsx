@@ -1,3 +1,5 @@
+import { notFound } from 'next/navigation';
+
 import { OffControlLog, type OffControlRow } from '@/components/dashboard/OffControlLog';
 import { PageHero } from '@/components/ui/PageHero';
 import { requireFullAccess } from '@/lib/auth/server';
@@ -8,8 +10,12 @@ import styles from '../dashboard.module.css';
 // 기록은 계속 쌓이므로 정적 생성하지 않는다
 export const dynamic = 'force-dynamic';
 
+// 임시 비활성화: 다시 켜려면 false 로 바꾸고 TabNav 의 탭 주석을 푼다
+const DISABLED = true;
+
 export default async function OffControlPage() {
   await requireFullAccess();
+  if (DISABLED) notFound();
   const entries = await (await getRepository()).getOffControlEntries();
 
   const rows: OffControlRow[] = entries.map((e) => ({
